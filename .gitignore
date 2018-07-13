@@ -14,3 +14,4 @@ obj
 *.testsettings
 *.vsmdi
 TestResult.xml
+/.vscode

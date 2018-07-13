@@ -97,4 +97,9 @@ public class PoolMemoryStream : Stream
         ArrayPool<byte>.Shared.Return(_innerBuffer);
         disposed = true;
     }
+
+    public new void CopyTo(Stream stream)
+    {
+        stream.Write(_innerBuffer, 0, (int)_length);
+    }
 }
