@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 
@@ -11,7 +12,7 @@ namespace Dubbo
         public Type[] ParameterTypes { get; set; }
         public string ParameterTypeInfo { get; set; }
         public object[] Arguments { get; set; }
-        public IDictionary<string, string> Attachments { get; set; }
+        public Hashtable Attachments { get; set; }//IDictionary<string, string>
 
         public string GetParameterTypeDesc()
         {

@@ -1,7 +1,8 @@
 ﻿using System;
 using System.IO;
 using System.Net.Sockets;
-using Hessian.IO;
+using Dubbo.Hessian;
+using hessiancsharp.io;
 
 namespace Dubbo
 {
@@ -28,17 +29,17 @@ namespace Dubbo
             header.WriteLong(request.RequestId, 4);
             using (var dataStream = new PoolMemoryStream())
             {
-                var output = new Hessian2Output(dataStream);
+                var output = new CHessianOutput(dataStream);
                 output.WriteString("2.0.0");
-                output.WriteString(request.Attachments["path"]);
-                output.WriteString(request.Attachments["version"]);
-                output.WriteString(request.MethodName);
+                output.WriteObject(request.Attachments["path"]);
+                output.WriteObject(request.Attachments["version"]);
+                output.WriteObject(request.MethodName);
                 output.WriteString(request.ParameterTypeInfo);
                 if (request.Arguments != null && request.Arguments.Length > 0)
                 {
                     foreach (var arg in request.Arguments)
                     {
-                        output.Write(arg);
+                        output.WriteObject(arg);
                     }
                 }
                 output.WriteObject(request.Attachments);
