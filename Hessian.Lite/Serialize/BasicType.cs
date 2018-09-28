@@ -1,0 +1,36 @@
+﻿namespace Hessian.Lite.Serialize
+{
+    public enum BasicType
+    {
+        Null,
+        Bool,
+        Byte,
+        SByte,
+        Short,
+        UShort,
+        Int,
+        UInt,
+        Long,
+        ULong,
+        Float,
+        Double,
+        Char,
+        String,
+        Date,
+        Object,
+        CharArray,
+        BoolArray,
+        ByteArray,
+        SByteArray,
+        ShortArray,
+        UShortArray,
+        IntArray,
+        UIntArray,
+        LongArray,
+        ULongArray,
+        FloatArray,
+        DoubleArray,
+        StringArray,
+        ObjectArray
+    }
+}

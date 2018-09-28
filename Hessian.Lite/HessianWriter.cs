@@ -305,5 +305,15 @@ namespace Hessian.Lite
             }
             _stream.WriteUtf8String(str, offset, length);
         }
+
+        public void WriteChars(char[] chars)
+        {
+            if (chars == null)
+            {
+                WriteNull();
+                return;
+            }
+            WriteString(new string(chars));
+        }
     }
 }
