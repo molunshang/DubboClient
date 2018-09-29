@@ -2,6 +2,6 @@
 {
     public interface IHessianSerializer
     {
-        void WriteObject(object obj, HessianWriter writer);
+        void WriteObject(object obj, Hessian2Writer writer);
     }
 }

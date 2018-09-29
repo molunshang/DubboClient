@@ -24,6 +24,7 @@ namespace Hessian.Lite.Serialize
                 case BasicType.FloatArray:
                 case BasicType.DoubleArray:
                 case BasicType.StringArray:
+                case BasicType.DateArray:
                 case BasicType.ObjectArray:
                     return true;
                 default:
@@ -34,7 +35,7 @@ namespace Hessian.Lite.Serialize
         {
             _type = type;
         }
-        public void WriteObject(object obj, HessianWriter writer)
+        public void WriteObject(object obj, Hessian2Writer writer)
         {
             if (IsRefrenceType(_type) && writer.WriteRef(obj))
             {
@@ -60,6 +61,7 @@ namespace Hessian.Lite.Serialize
                     writer.WriteLong(Convert.ToInt64(obj));
                     break;
                 case BasicType.ULong:
+                    //todo 实现无符号long序列化
                     break;
                 case BasicType.Float:
                 case BasicType.Double:
@@ -164,6 +166,14 @@ namespace Hessian.Lite.Serialize
                         writer.WriteLong(s);
                     }
                     break;
+                case BasicType.DateArray:
+                    var dateArray = (DateTime[])obj;
+                    writer.WriteListStart(dateArray.Length, "[date");
+                    foreach (var item in dateArray)
+                    {
+                        writer.WriteDateTime(item);
+                    }
+                    break;
                 case BasicType.ObjectArray:
                     var objArray = (object[])obj;
                     writer.WriteListStart(objArray.Length, "[object");
@@ -173,6 +183,7 @@ namespace Hessian.Lite.Serialize
                     }
                     break;
                 case BasicType.ULongArray:
+                    //todo 实现无符号long序列化
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();

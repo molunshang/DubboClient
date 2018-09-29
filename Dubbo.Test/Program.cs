@@ -1,6 +1,7 @@
-﻿using org.apache.zookeeper;
-using System;
+﻿using Hessian.Lite;
+using org.apache.zookeeper;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace Dubbo.Test
@@ -22,8 +23,8 @@ namespace Dubbo.Test
 
         static void Main(string[] args)
         {
-            var type = typeof(int[]);
-            Console.WriteLine(type.BaseType);
+            //var type = typeof(int[]);
+            //Console.WriteLine(type.BaseType);
             //uint n = 123;
             //var strem = new MemoryStream();
             //var hessian = new CHessianOutput(strem);
@@ -89,6 +90,14 @@ namespace Dubbo.Test
             //        Console.WriteLine(path);
             //    }
             //}).Wait();
+            var data = Test();
+            var dic = new SortedDictionary<string, int> { { "1", 1 }, { "2", 2 }, { "3", 3 } };
+            var buffer = new MemoryStream();
+            var writer = new Hessian2Writer(buffer);
+            writer.WriteObject(dic);
+            File.WriteAllBytes("hessian.test", buffer.ToArray());
         }
+
+
     }
 }

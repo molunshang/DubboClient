@@ -31,6 +31,7 @@
         FloatArray,
         DoubleArray,
         StringArray,
+        DateArray,
         ObjectArray
     }
 }

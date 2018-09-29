@@ -4,30 +4,6 @@ namespace Hessian.Lite.Serialize
 {
     public class ArraySerializer : AbstractSerializer
     {
-        private static volatile ArraySerializer _instance;
-        public static ArraySerializer Instance
-        {
-            get
-            {
-                if (_instance != null)
-                {
-                    return _instance;
-                }
-
-                lock (SyncRoot)
-                {
-                    if (_instance != null)
-                    {
-                        return _instance;
-                    }
-                    _instance = new ArraySerializer();
-                }
-
-                return _instance;
-            }
-        }
-
-        private ArraySerializer() { }
         private string GetArrayType(Type type)
         {
             if (type.IsArray)
@@ -58,7 +34,7 @@ namespace Hessian.Lite.Serialize
             }
             return type.FullName;
         }
-        protected override void DoWrite(object obj, HessianWriter writer)
+        protected override void DoWrite(object obj, Hessian2Writer writer)
         {
             var array = (object[])obj;
             writer.WriteListStart(array.Length, GetArrayType(obj.GetType()));

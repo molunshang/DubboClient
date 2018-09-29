@@ -5,17 +5,25 @@ namespace Hessian.Lite.Serialize
 {
     public class CollectionSerializer : EnumerableSerializer
     {
-        protected override bool WriteListBegin(object obj, HessianWriter writer)
+        protected override bool WriteListBegin(object obj, Hessian2Writer writer)
         {
-            var listType = obj.GetType();
             var collection = (ICollection)obj;
-            if (collection is ArrayList || (listType.IsGenericType && listType.GetGenericTypeDefinition() == typeof(List<>)))
+            var listType = obj.GetType();
+            if (listType.IsGenericType)
             {
-                writer.WriteListStart(collection.Count, null);
+                var genericType = listType.GetGenericTypeDefinition();
+                if (genericType == typeof(List<>))
+                {
+                    writer.WriteListStart(collection.Count, null);
+                }
+                else
+                {
+                    writer.WriteListStart(collection.Count, SendGenericType ? listType.FullName : genericType.FullName);
+                }
             }
             else
             {
-                writer.WriteListStart(collection.Count, listType.FullName);
+                writer.WriteListStart(collection.Count, collection is ArrayList ? null : listType.FullName);
             }
             return false;
         }

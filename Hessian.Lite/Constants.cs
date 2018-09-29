@@ -77,14 +77,19 @@
         public const byte Ref = 0x51;
 
         public const byte VariableList = 0x55;
-        public const byte FixedList = (byte)'V';
+        public const byte FixedList = 0x56;
         public const byte VariableUnTypeList = 0x57;
         public const byte FixedUnTypeList = 0x58;
         public const byte SmallFixedList = 0x70;
         public const byte SmallFixedUnTypeList = 0x78;
-        public const byte ListEnd = (byte)'Z';
 
         public const int SmallListMaxLength = 7;
+
+        public const byte UnTypeMap = (byte)'H';
+        public const byte Map = (byte)'M';
+
+
+        public const byte End = (byte)'Z';
         #endregion
     }
 }

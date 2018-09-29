@@ -2,9 +2,14 @@
 {
     public abstract class AbstractSerializer : IHessianSerializer
     {
-        protected static readonly object SyncRoot = new object();
-        protected abstract void DoWrite(object obj, HessianWriter writer);
-        public void WriteObject(object obj, HessianWriter writer)
+        protected abstract void DoWrite(object obj, Hessian2Writer writer);
+        public bool SendGenericType { get; set; }
+
+        protected AbstractSerializer()
+        {
+            SendGenericType = true;
+        }
+        public void WriteObject(object obj, Hessian2Writer writer)
         {
             if (writer.WriteRef(obj))
             {

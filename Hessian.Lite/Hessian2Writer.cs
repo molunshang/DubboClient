@@ -1,16 +1,17 @@
 ﻿using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 
 namespace Hessian.Lite
 {
-    public class HessianWriter
+    public class Hessian2Writer
     {
         private readonly Stream _stream;
-        private readonly Dictionary<string, int> typeRefs = new Dictionary<string, int>();
-        private readonly Dictionary<object, int> objRefs = new Dictionary<object, int>();
+        private readonly Dictionary<string, int> _typeRefs = new Dictionary<string, int>();
+        private readonly Dictionary<object, int> _objRefs = new Dictionary<object, int>();
 
-        public HessianWriter(Stream output)
+        public Hessian2Writer(Stream output)
         {
             _stream = output;
         }
@@ -23,13 +24,13 @@ namespace Hessian.Lite
             }
 
             type = SerializeFactory.GetMapType(type);
-            if (typeRefs.TryGetValue(type, out var index))
+            if (_typeRefs.TryGetValue(type, out var index))
             {
                 WriteInt(index);
             }
             else
             {
-                typeRefs[type] = typeRefs.Count;
+                _typeRefs[type] = _typeRefs.Count;
                 WriteString(type);
             }
         }
@@ -193,7 +194,7 @@ namespace Hessian.Lite
 
         public void WriteListEnd()
         {
-            _stream.WriteByte(Constants.ListEnd);
+            _stream.WriteByte(Constants.End);
         }
         public void WriteLong(long value)
         {
@@ -224,9 +225,22 @@ namespace Hessian.Lite
             }
         }
 
-        public void WriteMap()
+        public void WriteMapBegin(string type)
         {
+            if (type == null)
+            {
+                _stream.WriteByte(Constants.UnTypeMap);
+            }
+            else
+            {
+                _stream.WriteByte(Constants.Map);
+                WriteType(type);
+            }
+        }
 
+        public void WriteMapEnd()
+        {
+            _stream.WriteByte(Constants.End);
         }
 
         public void WriteNull()
@@ -241,25 +255,19 @@ namespace Hessian.Lite
                 WriteNull();
                 return;
             }
-
-            if (WriteRef(obj))
-            {
-                return;
-            }
-
             var serializer = SerializeFactory.GetSerializer(obj.GetType());
             serializer.WriteObject(obj, this);
         }
 
         public bool WriteRef(object obj)
         {
-            if (objRefs.TryGetValue(obj, out var index))
+            if (_objRefs.TryGetValue(obj, out var index))
             {
                 _stream.WriteByte(Constants.Ref);
                 WriteInt(index);
                 return true;
             }
-            objRefs.Add(obj, objRefs.Count);
+            _objRefs.Add(obj, _objRefs.Count);
             return false;
         }
 
@@ -314,6 +322,35 @@ namespace Hessian.Lite
                 return;
             }
             WriteString(new string(chars));
+        }
+
+        public void WriteStream(Stream stream)
+        {
+            if (stream == null)
+            {
+                WriteNull();
+                return;
+            }
+
+            byte[] buffer = null;
+            try
+            {
+                buffer = ArrayPool<byte>.Shared.Rent(1024);
+                int count;
+                while ((count = stream.Read(buffer, 0, buffer.Length)) > 0)
+                {
+                    _stream.WriteByte(Constants.BinaryChunk);
+                    _stream.WriteByte((byte)(count >> 8));
+                    _stream.WriteByte((byte)count);
+                    _stream.Write(buffer, 0, Constants.BinaryChunkLength);
+                }
+                _stream.WriteByte(Constants.BinaryChunkMinStart);
+            }
+            finally
+            {
+                if (buffer != null)
+                    ArrayPool<byte>.Shared.Return(buffer);
+            }
         }
     }
 }
