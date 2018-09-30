@@ -9,6 +9,7 @@ namespace Hessian.Lite
     {
         private readonly Stream _stream;
         private readonly Dictionary<string, int> _typeRefs = new Dictionary<string, int>();
+        private readonly Dictionary<string, int> _classRefs = new Dictionary<string, int>();
         private readonly Dictionary<object, int> _objRefs = new Dictionary<object, int>();
 
         public Hessian2Writer(Stream output)
@@ -23,7 +24,6 @@ namespace Hessian.Lite
                 throw new ArgumentException("the type is not allow null or empty string");
             }
 
-            type = SerializeFactory.GetMapType(type);
             if (_typeRefs.TryGetValue(type, out var index))
             {
                 WriteInt(index);
@@ -257,6 +257,28 @@ namespace Hessian.Lite
             }
             var serializer = SerializeFactory.GetSerializer(obj.GetType());
             serializer.WriteObject(obj, this);
+        }
+
+        public bool WriteObjectHeader(string type)
+        {
+            if (_classRefs.TryGetValue(type, out var defIndex))
+            {
+                if (defIndex <= Constants.ObjectDirectMax)
+                {
+                    _stream.WriteByte((byte)(Constants.ObjectDirectMin + defIndex));
+                }
+                else
+                {
+                    _stream.WriteByte(Constants.Object);
+                    WriteInt(defIndex);
+                }
+                return true;
+            }
+
+            _classRefs.Add(type, _classRefs.Count);
+            _stream.WriteByte(Constants.ClassDef);
+            WriteString(type);
+            return false;
         }
 
         public bool WriteRef(object obj)

@@ -20,7 +20,6 @@ namespace Hessian.Lite.Serialize
                 case BasicType.IntArray:
                 case BasicType.UIntArray:
                 case BasicType.LongArray:
-                case BasicType.ULongArray:
                 case BasicType.FloatArray:
                 case BasicType.DoubleArray:
                 case BasicType.StringArray:
@@ -59,9 +58,6 @@ namespace Hessian.Lite.Serialize
                 case BasicType.UInt:
                 case BasicType.Long:
                     writer.WriteLong(Convert.ToInt64(obj));
-                    break;
-                case BasicType.ULong:
-                    //todo 实现无符号long序列化
                     break;
                 case BasicType.Float:
                 case BasicType.Double:
@@ -181,9 +177,6 @@ namespace Hessian.Lite.Serialize
                     {
                         writer.WriteObject(item);
                     }
-                    break;
-                case BasicType.ULongArray:
-                    //todo 实现无符号long序列化
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();

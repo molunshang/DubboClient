@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 
 namespace Hessian.Lite
 {
@@ -32,7 +33,6 @@ namespace Hessian.Lite
             stream.WriteByte((byte)val);
         }
 
-
         public static void WriteUtf8String(this Stream stream, string str)
         {
             WriteUtf8String(stream, str, 0, str.Length);
@@ -59,6 +59,50 @@ namespace Hessian.Lite
                     stream.WriteByte((byte)(0x80 + (ch & 0x3f)));
                 }
             }
+        }
+
+        public static int ReadInt(this Stream stream, int bits = 4)
+        {
+            switch (bits)
+            {
+                case 1:
+                    return stream.ReadByte();
+                case 2:
+                    return stream.ReadByte() << 8 | stream.ReadByte();
+                case 3:
+                    return stream.ReadByte() << 16 | stream.ReadByte() << 8 | stream.ReadByte();
+                case 4:
+                    return stream.ReadByte() << 24 | stream.ReadByte() << 16 | stream.ReadByte() << 8 | stream.ReadByte();
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
+        }
+
+        public static long ReadLong(this Stream stream, int bits = 8)
+        {
+            switch (bits)
+            {
+                case 1:
+                case 2:
+                case 3:
+                case 4:
+                    return ReadInt(stream, bits);
+                case 5:
+                    return ReadInt(stream, bits) << 8 | stream.ReadByte();
+                case 6:
+                    return ReadInt(stream, bits) << 16 | stream.ReadByte() << 8 | stream.ReadByte();
+                case 7:
+                    return ReadInt(stream, bits) << 24 | stream.ReadByte() << 16 | stream.ReadByte() << 8 | stream.ReadByte();
+                case 8:
+                    return ReadInt(stream, bits) << 32 | stream.ReadByte() << 24 | stream.ReadByte() << 16 | stream.ReadByte() << 8 | stream.ReadByte();
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
+        }
+
+        public static double ReadDouble(this Stream stream)
+        {
+            return BitConverter.Int64BitsToDouble(ReadLong(stream));
         }
     }
 }

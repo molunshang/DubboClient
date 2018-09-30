@@ -10,4 +10,8 @@
     <PackageReference Include="ZooKeeperNetEx" Version="3.4.12" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Hessian.Lite\Hessian.Lite.csproj" />
+  </ItemGroup>
+
 </Project>

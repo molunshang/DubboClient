@@ -4,7 +4,7 @@ namespace Hessian.Lite.Serialize
 {
     public class ArraySerializer : AbstractSerializer
     {
-        private string GetArrayType(Type type)
+        private static string GetArrayType(Type type)
         {
             if (type.IsArray)
             {

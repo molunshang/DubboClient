@@ -6,7 +6,7 @@ using System.IO;
 
 namespace Hessian.Lite
 {
-    public static class SerializeFactory
+    public class SerializeFactory
     {
         private static readonly ConcurrentDictionary<string, string> TypeMap = new ConcurrentDictionary<string, string>();
         private static readonly ConcurrentDictionary<Type, IHessianSerializer> SerializerMap = new ConcurrentDictionary<Type, IHessianSerializer>();
@@ -26,7 +26,6 @@ namespace Hessian.Lite
             RegisterSerializer(typeof(int), new BasicSerializer(BasicType.Int));
             RegisterSerializer(typeof(uint), new BasicSerializer(BasicType.UInt));
             RegisterSerializer(typeof(long), new BasicSerializer(BasicType.Long));
-            RegisterSerializer(typeof(ulong), new BasicSerializer(BasicType.ULong));
             RegisterSerializer(typeof(float), new BasicSerializer(BasicType.Float));
             RegisterSerializer(typeof(double), new BasicSerializer(BasicType.Double));
             RegisterSerializer(typeof(char), new BasicSerializer(BasicType.Char));
@@ -47,9 +46,11 @@ namespace Hessian.Lite
             RegisterSerializer(typeof(string[]), new BasicSerializer(BasicType.StringArray));
             RegisterSerializer(typeof(DateTime[]), new BasicSerializer(BasicType.DateArray));
             RegisterSerializer(typeof(object[]), new BasicSerializer(BasicType.ObjectArray));
+            RegisterSerializer(typeof(ulong), SingleObject<StringSerializer>());
+            RegisterSerializer(typeof(decimal), SingleObject<StringSerializer>());
         }
 
-        public static bool RegisterTypeMap(string type, string mapType)
+        public static bool RegisterDefaultTypeMap(string type, string mapType)
         {
             if (!TypeMap.TryAdd(type, mapType))
             {
@@ -59,9 +60,13 @@ namespace Hessian.Lite
             TypeMap.AddOrUpdate(mapType, type, (key, old) => type);
             return true;
         }
-        public static string GetMapType(string type)
+        public static bool RegisterDefaultTypeMap(Type type, string mapType)
         {
-            return TypeMap.TryGetValue(type, out var mapType) ? mapType : type;
+            return RegisterDefaultTypeMap(type.FullName, mapType);
+        }
+        public static bool TryGetMapType(string type, out string mapType)
+        {
+            return TypeMap.TryGetValue(type, out mapType);
         }
 
         public static bool RegisterSerializer(Type type, IHessianSerializer serializer)
@@ -100,7 +105,7 @@ namespace Hessian.Lite
             }
             else
             {
-
+                serializer = new ObjectSerializer(type);
             }
             RegisterSerializer(type, serializer);
             return serializer;

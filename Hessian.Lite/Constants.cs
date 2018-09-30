@@ -22,6 +22,7 @@
         public const byte DoubleOne = 0x5c;
         public const byte DoubleByte = 0x5d;
         public const byte DoubleShort = 0x5e;
+        public const byte DoubleInt = 0x5f;
         public const byte Double = (byte)'D';
 
         #region Int相关常量
@@ -87,6 +88,12 @@
 
         public const byte UnTypeMap = (byte)'H';
         public const byte Map = (byte)'M';
+
+        public const byte ClassDef = (byte)'C';
+        public const byte Object = (byte)'O';
+
+        public const byte ObjectDirectMax = 0x0f;
+        public const byte ObjectDirectMin = 0x60;
 
 
         public const byte End = (byte)'Z';

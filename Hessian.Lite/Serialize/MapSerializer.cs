@@ -17,7 +17,9 @@ namespace Hessian.Lite.Serialize
                 }
                 else
                 {
-                    writer.WriteMapBegin(SendGenericType ? type.FullName : genericType.FullName);
+                    writer.WriteMapBegin(SerializeFactory.TryGetMapType(genericType.FullName, out var targetType)
+                        ? targetType
+                        : type.FullName);
                 }
             }
             else

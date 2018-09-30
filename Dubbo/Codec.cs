@@ -3,6 +3,7 @@ using System.IO;
 using System.Net.Sockets;
 using Dubbo.Hessian;
 using hessiancsharp.io;
+using Hessian.Lite.IO;
 
 namespace Dubbo
 {
