@@ -17,6 +17,231 @@ namespace Hessian.Lite
             throw new ArgumentException(msg);
         }
 
+        private bool TryReadBool(int tag, out bool result)
+        {
+            switch (tag)
+            {
+                case Constants.True:
+                    result = true;
+                    break;
+                case Constants.False:
+                    result = false;
+                    break;
+                default:
+                    result = false;
+                    return false;
+            }
+            return true;
+        }
+
+        private bool TryReadInt(int tag, out int result)
+        {
+            switch (tag)
+            {
+                // direct integer
+                case 0x80:
+                case 0x81:
+                case 0x82:
+                case 0x83:
+                case 0x84:
+                case 0x85:
+                case 0x86:
+                case 0x87:
+                case 0x88:
+                case 0x89:
+                case 0x8a:
+                case 0x8b:
+                case 0x8c:
+                case 0x8d:
+                case 0x8e:
+                case 0x8f:
+                case 0x90:
+                case 0x91:
+                case 0x92:
+                case 0x93:
+                case 0x94:
+                case 0x95:
+                case 0x96:
+                case 0x97:
+                case 0x98:
+                case 0x99:
+                case 0x9a:
+                case 0x9b:
+                case 0x9c:
+                case 0x9d:
+                case 0x9e:
+                case 0x9f:
+                case 0xa0:
+                case 0xa1:
+                case 0xa2:
+                case 0xa3:
+                case 0xa4:
+                case 0xa5:
+                case 0xa6:
+                case 0xa7:
+                case 0xa8:
+                case 0xa9:
+                case 0xaa:
+                case 0xab:
+                case 0xac:
+                case 0xad:
+                case 0xae:
+                case 0xaf:
+                case 0xb0:
+                case 0xb1:
+                case 0xb2:
+                case 0xb3:
+                case 0xb4:
+                case 0xb5:
+                case 0xb6:
+                case 0xb7:
+                case 0xb8:
+                case 0xb9:
+                case 0xba:
+                case 0xbb:
+                case 0xbc:
+                case 0xbd:
+                case 0xbe:
+                case 0xbf:
+                    result = tag - Constants.IntOneByte;
+                    break;
+                /* byte int */
+                case 0xc0:
+                case 0xc1:
+                case 0xc2:
+                case 0xc3:
+                case 0xc4:
+                case 0xc5:
+                case 0xc6:
+                case 0xc7:
+                case 0xc8:
+                case 0xc9:
+                case 0xca:
+                case 0xcb:
+                case 0xcc:
+                case 0xcd:
+                case 0xce:
+                case 0xcf:
+                    result = ((tag - Constants.IntTwoByte) << 8) | _reader.ReadByte();
+                    break;
+                /* short int */
+                case 0xd0:
+                case 0xd1:
+                case 0xd2:
+                case 0xd3:
+                case 0xd4:
+                case 0xd5:
+                case 0xd6:
+                case 0xd7:
+                    result = ((tag - Constants.IntThreeByte) << 16) | _reader.ReadByte() << 8 | _reader.ReadByte();
+                    break;
+                case Constants.Int:
+                    result = _reader.ReadInt();
+                    break;
+                default:
+                    result = 0;
+                    return false;
+            }
+            return true;
+        }
+
+        private bool TryReadLong(int tag, out long result)
+        {
+            switch (tag)
+            {
+                // direct long
+                case 0xd8:
+                case 0xd9:
+                case 0xda:
+                case 0xdb:
+                case 0xdc:
+                case 0xdd:
+                case 0xde:
+                case 0xdf:
+                case 0xe0:
+                case 0xe1:
+                case 0xe2:
+                case 0xe3:
+                case 0xe4:
+                case 0xe5:
+                case 0xe6:
+                case 0xe7:
+                case 0xe8:
+                case 0xe9:
+                case 0xea:
+                case 0xeb:
+                case 0xec:
+                case 0xed:
+                case 0xee:
+                case 0xef:
+                    result = tag - Constants.LongOneByte;
+                    break;
+                /* byte long */
+                case 0xf0:
+                case 0xf1:
+                case 0xf2:
+                case 0xf3:
+                case 0xf4:
+                case 0xf5:
+                case 0xf6:
+                case 0xf7:
+                case 0xf8:
+                case 0xf9:
+                case 0xfa:
+                case 0xfb:
+                case 0xfc:
+                case 0xfd:
+                case 0xfe:
+                case 0xff:
+                    result = ((tag - Constants.LongTwoByte) << 8) + _reader.ReadByte();
+                    break;
+                /* short long */
+                case 0x38:
+                case 0x39:
+                case 0x3a:
+                case 0x3b:
+                case 0x3c:
+                case 0x3d:
+                case 0x3e:
+                case 0x3f:
+                    result = ((tag - Constants.LongThreeByte) << 16) | _reader.ReadByte() << 8 | _reader.ReadByte();
+                    break;
+                case Constants.Long:
+                    result = _reader.ReadLong();
+                    break;
+                case Constants.LongFourByte:
+                    result = _reader.ReadInt();
+                    break;
+                default:
+                    result = 0;
+                    return false;
+            }
+            return true;
+        }
+
+        private bool TryReadDouble(int tag, out double result)
+        {
+            switch (tag)
+            {
+                case Constants.DoubleZero:
+                    result = 0;
+                    break;
+                case Constants.DoubleOne:
+                    result = 1;
+                    break;
+                case Constants.DoubleInt:
+                    result = 0.001 * _reader.ReadInt();
+                    break;
+                case Constants.Double:
+                    result = _reader.ReadDouble();
+                    break;
+                default:
+                    result = 0.0D;
+                    return false;
+            }
+            return true;
+        }
+
         public object ReadObject()
         {
             return null;
@@ -39,215 +264,27 @@ namespace Hessian.Lite
         public bool ReadBool()
         {
             var tag = _reader.ReadByte();
-            switch (tag)
+            if (tag == Constants.Null)
             {
-                case Constants.True:
-                    return true;
-                case Constants.False:
-                    return false;
-
-                // direct integer
-                case 0x80:
-                case 0x81:
-                case 0x82:
-                case 0x83:
-                case 0x84:
-                case 0x85:
-                case 0x86:
-                case 0x87:
-                case 0x88:
-                case 0x89:
-                case 0x8a:
-                case 0x8b:
-                case 0x8c:
-                case 0x8d:
-                case 0x8e:
-                case 0x8f:
-                case 0x90:
-                case 0x91:
-                case 0x92:
-                case 0x93:
-                case 0x94:
-                case 0x95:
-                case 0x96:
-                case 0x97:
-                case 0x98:
-                case 0x99:
-                case 0x9a:
-                case 0x9b:
-                case 0x9c:
-                case 0x9d:
-                case 0x9e:
-                case 0x9f:
-                case 0xa0:
-                case 0xa1:
-                case 0xa2:
-                case 0xa3:
-                case 0xa4:
-                case 0xa5:
-                case 0xa6:
-                case 0xa7:
-                case 0xa8:
-                case 0xa9:
-                case 0xaa:
-                case 0xab:
-                case 0xac:
-                case 0xad:
-                case 0xae:
-                case 0xaf:
-                case 0xb0:
-                case 0xb1:
-                case 0xb2:
-                case 0xb3:
-                case 0xb4:
-                case 0xb5:
-                case 0xb6:
-                case 0xb7:
-                case 0xb8:
-                case 0xb9:
-                case 0xba:
-                case 0xbb:
-                case 0xbc:
-                case 0xbd:
-                case 0xbe:
-                case 0xbf:
-                    return tag != Constants.IntOneByte;
-
-                // INT_BYTE = 0
-                case 0xc8:
-                    return _reader.ReadByte() != 0;
-
-                // INT_BYTE != 0
-                case 0xc0:
-                case 0xc1:
-                case 0xc2:
-                case 0xc3:
-                case 0xc4:
-                case 0xc5:
-                case 0xc6:
-                case 0xc7:
-                case 0xc9:
-                case 0xca:
-                case 0xcb:
-                case 0xcc:
-                case 0xcd:
-                case 0xce:
-                case 0xcf:
-                    _reader.ReadByte();
-                    return true;
-
-                // INT_SHORT = 0
-                case 0xd4:
-                    return _reader.ReadInt(2) != 0;
-
-                // INT_SHORT != 0
-                case 0xd0:
-                case 0xd1:
-                case 0xd2:
-                case 0xd3:
-                case 0xd5:
-                case 0xd6:
-                case 0xd7:
-                    _reader.ReadInt(2);
-                    return true;
-
-                case Constants.Int:
-                    return _reader.ReadInt() != 0;
-
-                case 0xd8:
-                case 0xd9:
-                case 0xda:
-                case 0xdb:
-                case 0xdc:
-                case 0xdd:
-                case 0xde:
-                case 0xdf:
-                case 0xe0:
-                case 0xe1:
-                case 0xe2:
-                case 0xe3:
-                case 0xe4:
-                case 0xe5:
-                case 0xe6:
-                case 0xe7:
-                case 0xe8:
-                case 0xe9:
-                case 0xea:
-                case 0xeb:
-                case 0xec:
-                case 0xed:
-                case 0xee:
-                case 0xef:
-                    return tag != Constants.LongOneByte;
-
-                // LONG_BYTE = 0
-                case 0xf8:
-                    return _reader.ReadByte() != 0;
-
-                // LONG_BYTE != 0
-                case 0xf0:
-                case 0xf1:
-                case 0xf2:
-                case 0xf3:
-                case 0xf4:
-                case 0xf5:
-                case 0xf6:
-                case 0xf7:
-                case 0xf9:
-                case 0xfa:
-                case 0xfb:
-                case 0xfc:
-                case 0xfd:
-                case 0xfe:
-                case 0xff:
-                    _reader.ReadByte();
-                    return true;
-
-                // INT_SHORT = 0
-                case 0x3c:
-                    return _reader.ReadInt(2) != 0;
-
-                // INT_SHORT != 0
-                case 0x38:
-                case 0x39:
-                case 0x3a:
-                case 0x3b:
-                case 0x3d:
-                case 0x3e:
-                case 0x3f:
-                    _reader.ReadInt(2);
-                    return true;
-
-                case Constants.LongFourByte:
-                    return _reader.ReadLong(4) != 0;
-
-                case Constants.Long:
-                    return _reader.ReadLong() != 0;
-
-                case Constants.DoubleZero:
-                    return false;
-
-                case Constants.DoubleOne:
-                    return true;
-
-                case Constants.DoubleByte:
-                    return _reader.ReadByte() != 0;
-
-                case Constants.DoubleShort:
-                    return _reader.ReadInt(2) != 0;
-
-                case Constants.DoubleInt:
-                    return _reader.ReadInt() != 0;
-
-                case Constants.Double:
-                    return _reader.ReadDouble() != 0.0;
-
-                case Constants.Null:
-                    return false;
-
-                default:
-                    throw RaiseError("bool", tag);
+                return false;
             }
+            if (TryReadBool(tag, out var boolVal))
+            {
+                return boolVal;
+            }
+            if (TryReadInt(tag, out var intVal))
+            {
+                return intVal != 0;
+            }
+            if (TryReadLong(tag, out var longVal))
+            {
+                return longVal != 0;
+            }
+            if (TryReadDouble(tag, out var doubleVal))
+            {
+                return doubleVal == 0.0;
+            }
+            throw RaiseError("bool", tag);
         }
 
 
@@ -259,408 +296,60 @@ namespace Hessian.Lite
         public int ReadInt()
         {
             var tag = _reader.ReadByte();
-            switch (tag)
+            if (tag == Constants.Null)
             {
-                case Constants.Null:
-                    return 0;
-
-                case Constants.False:
-                    return 0;
-
-                case Constants.True:
-                    return 1;
-
-                // direct integer
-                case 0x80:
-                case 0x81:
-                case 0x82:
-                case 0x83:
-                case 0x84:
-                case 0x85:
-                case 0x86:
-                case 0x87:
-                case 0x88:
-                case 0x89:
-                case 0x8a:
-                case 0x8b:
-                case 0x8c:
-                case 0x8d:
-                case 0x8e:
-                case 0x8f:
-                case 0x90:
-                case 0x91:
-                case 0x92:
-                case 0x93:
-                case 0x94:
-                case 0x95:
-                case 0x96:
-                case 0x97:
-                case 0x98:
-                case 0x99:
-                case 0x9a:
-                case 0x9b:
-                case 0x9c:
-                case 0x9d:
-                case 0x9e:
-                case 0x9f:
-
-                case 0xa0:
-                case 0xa1:
-                case 0xa2:
-                case 0xa3:
-                case 0xa4:
-                case 0xa5:
-                case 0xa6:
-                case 0xa7:
-                case 0xa8:
-                case 0xa9:
-                case 0xaa:
-                case 0xab:
-                case 0xac:
-                case 0xad:
-                case 0xae:
-                case 0xaf:
-
-                case 0xb0:
-                case 0xb1:
-                case 0xb2:
-                case 0xb3:
-                case 0xb4:
-                case 0xb5:
-                case 0xb6:
-                case 0xb7:
-                case 0xb8:
-                case 0xb9:
-                case 0xba:
-                case 0xbb:
-                case 0xbc:
-                case 0xbd:
-                case 0xbe:
-                case 0xbf:
-                    return tag - Constants.IntOneByte;
-
-                /* byte int */
-                case 0xc0:
-                case 0xc1:
-                case 0xc2:
-                case 0xc3:
-                case 0xc4:
-                case 0xc5:
-                case 0xc6:
-                case 0xc7:
-                case 0xc8:
-                case 0xc9:
-                case 0xca:
-                case 0xcb:
-                case 0xcc:
-                case 0xcd:
-                case 0xce:
-                case 0xcf:
-                    return ((tag - Constants.IntTwoByte) << 8) | _reader.ReadByte();
-
-                /* short int */
-                case 0xd0:
-                case 0xd1:
-                case 0xd2:
-                case 0xd3:
-                case 0xd4:
-                case 0xd5:
-                case 0xd6:
-                case 0xd7:
-                    return ((tag - Constants.IntThreeByte) << 16) | _reader.ReadByte() << 8 | _reader.ReadByte();
-
-                case Constants.Int:
-                case Constants.LongFourByte:
-                    return _reader.ReadInt();
-
-                // direct long
-                case 0xd8:
-                case 0xd9:
-                case 0xda:
-                case 0xdb:
-                case 0xdc:
-                case 0xdd:
-                case 0xde:
-                case 0xdf:
-
-                case 0xe0:
-                case 0xe1:
-                case 0xe2:
-                case 0xe3:
-                case 0xe4:
-                case 0xe5:
-                case 0xe6:
-                case 0xe7:
-                case 0xe8:
-                case 0xe9:
-                case 0xea:
-                case 0xeb:
-                case 0xec:
-                case 0xed:
-                case 0xee:
-                case 0xef:
-                    return tag - Constants.LongOneByte;
-
-                /* byte long */
-                case 0xf0:
-                case 0xf1:
-                case 0xf2:
-                case 0xf3:
-                case 0xf4:
-                case 0xf5:
-                case 0xf6:
-                case 0xf7:
-                case 0xf8:
-                case 0xf9:
-                case 0xfa:
-                case 0xfb:
-                case 0xfc:
-                case 0xfd:
-                case 0xfe:
-                case 0xff:
-                    return ((tag - Constants.LongTwoByte) << 8) + _reader.ReadByte();
-
-                /* short long */
-                case 0x38:
-                case 0x39:
-                case 0x3a:
-                case 0x3b:
-                case 0x3c:
-                case 0x3d:
-                case 0x3e:
-                case 0x3f:
-                    return ((tag - Constants.LongThreeByte) << 16) | _reader.ReadByte() << 8 | _reader.ReadByte();
-
-                case Constants.Long:
-                    return (int)_reader.ReadLong();
-
-                case Constants.DoubleZero:
-                    return 0;
-
-                case Constants.DoubleOne:
-                    return 1;
-
-                case Constants.DoubleByte:
-                    return _reader.ReadByte();
-
-                case Constants.DoubleShort:
-                    return (short)(_reader.ReadByte() << 8 | _reader.ReadByte());
-
-                case Constants.DoubleInt:
-                    {
-                        return (int)(0.001 * _reader.ReadInt());
-                    }
-
-                case Constants.Double:
-                    return (int)_reader.ReadDouble();
-
-                default:
-                    throw RaiseError("int", tag);
+                return 0;
             }
+
+            if (TryReadInt(tag, out var intResult))
+            {
+                return intResult;
+            }
+
+            if (TryReadBool(tag, out var boolResult))
+            {
+                return boolResult ? 1 : 0;
+            }
+
+            if (TryReadLong(tag, out var longResult))
+            {
+                return (int)longResult;
+            }
+            if (TryReadDouble(tag, out var doubleVal))
+            {
+                return (int)doubleVal;
+            }
+            throw RaiseError("int", tag);
         }
 
         public long ReadLong()
         {
-            int tag = _reader.ReadByte();
-            switch (tag)
+            var tag = _reader.ReadByte();
+            if (tag == Constants.Null)
             {
-                case Constants.Null:
-                    return 0;
-
-                case Constants.False:
-                    return 0;
-
-                case Constants.True:
-                    return 1;
-
-                // direct integer
-                case 0x80:
-                case 0x81:
-                case 0x82:
-                case 0x83:
-                case 0x84:
-                case 0x85:
-                case 0x86:
-                case 0x87:
-                case 0x88:
-                case 0x89:
-                case 0x8a:
-                case 0x8b:
-                case 0x8c:
-                case 0x8d:
-                case 0x8e:
-                case 0x8f:
-
-                case 0x90:
-                case 0x91:
-                case 0x92:
-                case 0x93:
-                case 0x94:
-                case 0x95:
-                case 0x96:
-                case 0x97:
-                case 0x98:
-                case 0x99:
-                case 0x9a:
-                case 0x9b:
-                case 0x9c:
-                case 0x9d:
-                case 0x9e:
-                case 0x9f:
-
-                case 0xa0:
-                case 0xa1:
-                case 0xa2:
-                case 0xa3:
-                case 0xa4:
-                case 0xa5:
-                case 0xa6:
-                case 0xa7:
-                case 0xa8:
-                case 0xa9:
-                case 0xaa:
-                case 0xab:
-                case 0xac:
-                case 0xad:
-                case 0xae:
-                case 0xaf:
-
-                case 0xb0:
-                case 0xb1:
-                case 0xb2:
-                case 0xb3:
-                case 0xb4:
-                case 0xb5:
-                case 0xb6:
-                case 0xb7:
-                case 0xb8:
-                case 0xb9:
-                case 0xba:
-                case 0xbb:
-                case 0xbc:
-                case 0xbd:
-                case 0xbe:
-                case 0xbf:
-                    return tag - Constants.IntOneByte;
-
-                /* byte int */
-                case 0xc0:
-                case 0xc1:
-                case 0xc2:
-                case 0xc3:
-                case 0xc4:
-                case 0xc5:
-                case 0xc6:
-                case 0xc7:
-                case 0xc8:
-                case 0xc9:
-                case 0xca:
-                case 0xcb:
-                case 0xcc:
-                case 0xcd:
-                case 0xce:
-                case 0xcf:
-                    return ((tag - Constants.IntTwoByte) << 8) | _reader.ReadByte();
-
-                /* short int */
-                case 0xd0:
-                case 0xd1:
-                case 0xd2:
-                case 0xd3:
-                case 0xd4:
-                case 0xd5:
-                case 0xd6:
-                case 0xd7:
-                    return ((tag - Constants.IntThreeByte) << 16) | _reader.ReadByte() << 8 | _reader.ReadByte();
-
-                case Constants.DoubleByte:
-                    return (byte)_reader.ReadByte();
-
-                case Constants.DoubleShort:
-                    return (short)(_reader.ReadByte() << 8 | _reader.ReadByte());
-
-                case Constants.Int:
-                case Constants.LongFourByte:
-                    return _reader.ReadInt();
-
-                // direct long
-                case 0xd8:
-                case 0xd9:
-                case 0xda:
-                case 0xdb:
-                case 0xdc:
-                case 0xdd:
-                case 0xde:
-                case 0xdf:
-
-                case 0xe0:
-                case 0xe1:
-                case 0xe2:
-                case 0xe3:
-                case 0xe4:
-                case 0xe5:
-                case 0xe6:
-                case 0xe7:
-                case 0xe8:
-                case 0xe9:
-                case 0xea:
-                case 0xeb:
-                case 0xec:
-                case 0xed:
-                case 0xee:
-                case 0xef:
-                    return tag - Constants.LongOneByte;
-
-                /* byte long */
-                case 0xf0:
-                case 0xf1:
-                case 0xf2:
-                case 0xf3:
-                case 0xf4:
-                case 0xf5:
-                case 0xf6:
-                case 0xf7:
-                case 0xf8:
-                case 0xf9:
-                case 0xfa:
-                case 0xfb:
-                case 0xfc:
-                case 0xfd:
-                case 0xfe:
-                case 0xff:
-                    return ((tag - Constants.LongTwoByte) << 8) | _reader.ReadByte();
-
-                /* short long */
-                case 0x38:
-                case 0x39:
-                case 0x3a:
-                case 0x3b:
-                case 0x3c:
-                case 0x3d:
-                case 0x3e:
-                case 0x3f:
-                    return ((tag - Constants.LongThreeByte) << 16) | _reader.ReadByte() << 8 | _reader.ReadByte();
-
-                case Constants.Long:
-                    return _reader.ReadLong();
-
-                case Constants.DoubleZero:
-                    return 0;
-
-                case Constants.DoubleOne:
-                    return 1;
-
-                case Constants.DoubleInt:
-                    {
-                        return (long)(0.001 * _reader.ReadInt());
-                    }
-
-                case Constants.Double:
-                    return (long)_reader.ReadDouble();
-
-                default:
-                    throw RaiseError("long", tag);
+                return 0;
             }
+
+            if (TryReadLong(tag, out var longResult))
+            {
+                return longResult;
+            }
+
+            if (TryReadInt(tag, out var intResult))
+            {
+                return intResult;
+            }
+
+            if (TryReadBool(tag, out var boolResult))
+            {
+                return boolResult ? 1 : 0;
+            }
+
+            if (TryReadDouble(tag, out var doubleVal))
+            {
+                return (long)doubleVal;
+            }
+            throw RaiseError("long", tag);
         }
 
         public float ReadFloat()
@@ -670,242 +359,169 @@ namespace Hessian.Lite
 
         public double ReadDouble()
         {
-            int tag = _reader.ReadByte();
-            switch (tag)
+            var tag = _reader.ReadByte();
+            if (tag == Constants.Null)
             {
-                case Constants.Null:
-                    return 0;
-
-                case Constants.False:
-                    return 0;
-
-                case Constants.True:
-                    return 1;
-                // direct integer
-                case 0x80:
-                case 0x81:
-                case 0x82:
-                case 0x83:
-                case 0x84:
-                case 0x85:
-                case 0x86:
-                case 0x87:
-                case 0x88:
-                case 0x89:
-                case 0x8a:
-                case 0x8b:
-                case 0x8c:
-                case 0x8d:
-                case 0x8e:
-                case 0x8f:
-
-                case 0x90:
-                case 0x91:
-                case 0x92:
-                case 0x93:
-                case 0x94:
-                case 0x95:
-                case 0x96:
-                case 0x97:
-                case 0x98:
-                case 0x99:
-                case 0x9a:
-                case 0x9b:
-                case 0x9c:
-                case 0x9d:
-                case 0x9e:
-                case 0x9f:
-
-                case 0xa0:
-                case 0xa1:
-                case 0xa2:
-                case 0xa3:
-                case 0xa4:
-                case 0xa5:
-                case 0xa6:
-                case 0xa7:
-                case 0xa8:
-                case 0xa9:
-                case 0xaa:
-                case 0xab:
-                case 0xac:
-                case 0xad:
-                case 0xae:
-                case 0xaf:
-
-                case 0xb0:
-                case 0xb1:
-                case 0xb2:
-                case 0xb3:
-                case 0xb4:
-                case 0xb5:
-                case 0xb6:
-                case 0xb7:
-                case 0xb8:
-                case 0xb9:
-                case 0xba:
-                case 0xbb:
-                case 0xbc:
-                case 0xbd:
-                case 0xbe:
-                case 0xbf:
-                    return tag - 0x90;
-
-                /* byte int */
-                case 0xc0:
-                case 0xc1:
-                case 0xc2:
-                case 0xc3:
-                case 0xc4:
-                case 0xc5:
-                case 0xc6:
-                case 0xc7:
-                case 0xc8:
-                case 0xc9:
-                case 0xca:
-                case 0xcb:
-                case 0xcc:
-                case 0xcd:
-                case 0xce:
-                case 0xcf:
-                    return ((tag - Constants.IntTwoByte) << 8) | _reader.ReadByte();
-
-                /* short int */
-                case 0xd0:
-                case 0xd1:
-                case 0xd2:
-                case 0xd3:
-                case 0xd4:
-                case 0xd5:
-                case 0xd6:
-                case 0xd7:
-                    return ((tag - Constants.IntThreeByte) << 16) | _reader.ReadByte() << 8 | _reader.ReadByte();
-
-                case Constants.Int:
-                case Constants.LongFourByte:
-                    return _reader.ReadInt();
-
-                // direct long
-                case 0xd8:
-                case 0xd9:
-                case 0xda:
-                case 0xdb:
-                case 0xdc:
-                case 0xdd:
-                case 0xde:
-                case 0xdf:
-
-                case 0xe0:
-                case 0xe1:
-                case 0xe2:
-                case 0xe3:
-                case 0xe4:
-                case 0xe5:
-                case 0xe6:
-                case 0xe7:
-                case 0xe8:
-                case 0xe9:
-                case 0xea:
-                case 0xeb:
-                case 0xec:
-                case 0xed:
-                case 0xee:
-                case 0xef:
-                    return tag - Constants.LongOneByte;
-
-                /* byte long */
-                case 0xf0:
-                case 0xf1:
-                case 0xf2:
-                case 0xf3:
-                case 0xf4:
-                case 0xf5:
-                case 0xf6:
-                case 0xf7:
-                case 0xf8:
-                case 0xf9:
-                case 0xfa:
-                case 0xfb:
-                case 0xfc:
-                case 0xfd:
-                case 0xfe:
-                case 0xff:
-                    return (tag - Constants.LongTwoByte) << 8 | _reader.ReadByte();
-
-                /* short long */
-                case 0x38:
-                case 0x39:
-                case 0x3a:
-                case 0x3b:
-                case 0x3c:
-                case 0x3d:
-                case 0x3e:
-                case 0x3f:
-                    return ((tag - Constants.LongThreeByte) << 16) | _reader.ReadByte() << 8 | _reader.ReadByte();
-
-                case Constants.Long:
-                    return _reader.ReadLong();
-
-                case Constants.DoubleZero:
-                    return 0;
-
-                case Constants.DoubleOne:
-                    return 1;
-
-                case Constants.DoubleByte:
-                    return (byte)_reader.ReadByte();
-
-                case Constants.DoubleShort:
-                    return _reader.ReadInt(2);
-
-                case Constants.DoubleInt:
-                    return 0.001 * _reader.ReadInt();
-                case Constants.Double:
-                    return _reader.ReadDouble();
-
-                default:
-                    throw RaiseError("double", tag);
+                return 0;
             }
+
+            if (TryReadDouble(tag, out var doubleVal))
+            {
+                return doubleVal;
+            }
+            if (TryReadInt(tag, out var intResult))
+            {
+                return intResult;
+            }
+
+            if (TryReadBool(tag, out var boolResult))
+            {
+                return boolResult ? 1 : 0;
+            }
+
+            if (TryReadLong(tag, out var longResult))
+            {
+                return longResult;
+            }
+
+            throw RaiseError("double", tag);
         }
 
         public DateTime ReadDate()
         {
-            int tag = _reader.ReadByte();
-            if (tag == Constants.DateTimeMillisecond)
+            var tag = _reader.ReadByte();
+            switch (tag)
             {
-                return DateTimeUtils.UtcStartTime.AddMilliseconds(_reader.ReadLong());
+                case Constants.DateTimeMillisecond:
+                    return DateTimeUtils.UtcStartTime.AddMilliseconds(_reader.ReadLong());
+                case Constants.DateTimeMinute:
+                    return DateTimeUtils.UtcStartTime.AddMinutes(_reader.ReadInt());
+                default:
+                    throw RaiseError("date", tag);
             }
-            if (tag == Constants.DateTimeMinute)
-            {
-                return DateTimeUtils.UtcStartTime.AddMinutes(_reader.ReadInt());
-            }
-            throw RaiseError("date", tag);
         }
 
-        private int readState;
-        public int ReadBytes(byte[] buffer, int offset, int count)
+        private bool ReadChunkLength(out int length)
         {
-            if (readState == 2)
+            var tag = _reader.ReadByte();
+            switch (tag)
             {
-                readState = 0;
-                return -1;
+                case Constants.BinaryChunk:
+                    length = _reader.ReadInt(2);
+                    return false;
+                case Constants.BinaryFinalChunk:
+                    length = _reader.ReadInt(2);
+                    return true;
+                case 0x20:
+                case 0x21:
+                case 0x22:
+                case 0x23:
+                case 0x24:
+                case 0x25:
+                case 0x26:
+                case 0x27:
+                case 0x28:
+                case 0x29:
+                case 0x2a:
+                case 0x2b:
+                case 0x2c:
+                case 0x2d:
+                case 0x2e:
+                case 0x2f:
+                    length = tag - 0x20;
+                    return true;
+                case 0x34:
+                case 0x35:
+                case 0x36:
+                case 0x37:
+                    length = (tag - 0x34) << 8 | _reader.ReadByte();
+                    return true;
+                default:
+                    throw RaiseError("bytes", tag);
             }
-            else if (readState == 0)
-            {
-                var tag = _reader.ReadByte();
-                switch (tag)
-                {
-                    case Constants.Null:
-                        return -1;
-                    case Constants.BinaryChunk:
-                    case Constants.BinaryFinalChunk:
-                        break;
-                    default:
-                        throw new Exception();
-                }
-            }
+        }
 
-            return -1;
+        public byte[] ReadBytes()//, int offset, int count
+        {
+            int length;
+            var tag = _reader.ReadByte();
+            switch (tag)
+            {
+                case Constants.Null:
+                    return null;
+                case Constants.BinaryChunk:
+                    length = _reader.ReadInt(2);
+                    var buffer = new byte[length];
+                    using (var dataStream = new MemoryStream())
+                    {
+                        var isLastChunk = false;
+                        while (!isLastChunk)
+                        {
+                            _reader.ReadBuffer(buffer, length);
+                            dataStream.Write(buffer, 0, length);
+                            isLastChunk = ReadChunkLength(out length);
+                            if (buffer.Length < length)
+                            {
+                                buffer = new byte[length];
+                            }
+                        }
+                        return dataStream.ToArray();
+                    }
+                case Constants.BinaryFinalChunk:
+                    length = _reader.ReadInt(2);
+                    break;
+                case 0x20:
+                case 0x21:
+                case 0x22:
+                case 0x23:
+                case 0x24:
+                case 0x25:
+                case 0x26:
+                case 0x27:
+                case 0x28:
+                case 0x29:
+                case 0x2a:
+                case 0x2b:
+                case 0x2c:
+                case 0x2d:
+                case 0x2e:
+                case 0x2f:
+                    length = tag - 0x20;
+                    break;
+                case 0x34:
+                case 0x35:
+                case 0x36:
+                case 0x37:
+                    length = (tag - 0x34) << 8 | _reader.ReadByte();
+                    break;
+                default:
+                    throw RaiseError("bytes", tag);
+            }
+            var chunk = new byte[length];
+            _reader.ReadBuffer(chunk);
+            return chunk;
+
+            //if (readState == 2)
+            //{
+            //    readState = 0;
+            //    return -1;
+            //}
+            //else if (readState == 0)
+            //{
+            //    var tag = _reader.ReadByte();
+            //    switch (tag)
+            //    {
+            //        case Constants.Null:
+            //            return -1;
+            //        case Constants.BinaryChunk:
+            //        case Constants.BinaryFinalChunk:
+            //            break;
+            //        default:
+            //            throw new Exception();
+            //    }
+            //}
+
+            //return -1;
             //else if (_chunkLength == 0)
             //{
             //    int tag = read();
@@ -972,6 +588,89 @@ namespace Hessian.Lite
             //    _chunkLength = END_OF_DATA;
             //    return readLength;
             //}
+        }
+
+        public string ReadString()
+        {
+            int tag = _reader.ReadByte();
+            switch (tag)
+            {
+                case Constants.Null:
+                    return null;
+                //case 'S':
+                //case BC_STRING_CHUNK:
+                //    _isLastChunk = tag == 'S';
+                //    _chunkLength = (read() << 8) + read();
+
+                //    _sbuf.setLength(0);
+                //    int ch;
+
+                //    while ((ch = parseChar()) >= 0)
+                //        _sbuf.append((char)ch);
+
+                //    return _sbuf.toString();
+
+                //// 0-byte string
+                //case 0x00:
+                //case 0x01:
+                //case 0x02:
+                //case 0x03:
+                //case 0x04:
+                //case 0x05:
+                //case 0x06:
+                //case 0x07:
+                //case 0x08:
+                //case 0x09:
+                //case 0x0a:
+                //case 0x0b:
+                //case 0x0c:
+                //case 0x0d:
+                //case 0x0e:
+                //case 0x0f:
+
+                //case 0x10:
+                //case 0x11:
+                //case 0x12:
+                //case 0x13:
+                //case 0x14:
+                //case 0x15:
+                //case 0x16:
+                //case 0x17:
+                //case 0x18:
+                //case 0x19:
+                //case 0x1a:
+                //case 0x1b:
+                //case 0x1c:
+                //case 0x1d:
+                //case 0x1e:
+                //case 0x1f:
+                //    _isLastChunk = true;
+                //    _chunkLength = tag - 0x00;
+
+                //    _sbuf.setLength(0);
+
+                //    while ((ch = parseChar()) >= 0)
+                //        _sbuf.append((char)ch);
+
+                //    return _sbuf.toString();
+
+                //case 0x30:
+                //case 0x31:
+                //case 0x32:
+                //case 0x33:
+                //    _isLastChunk = true;
+                //    _chunkLength = (tag - 0x30) * 256 + read();
+
+                //    _sbuf.setLength(0);
+
+                //    while ((ch = parseChar()) >= 0)
+                //        _sbuf.append((char)ch);
+
+                //    return _sbuf.toString();
+
+                default:
+                    throw RaiseError("string", tag);
+            }
         }
     }
 }
