@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Text;
 
 namespace Hessian.Lite
 {
@@ -287,7 +288,6 @@ namespace Hessian.Lite
             throw RaiseError("bool", tag);
         }
 
-
         public short ReadShort()
         {
             return (short)ReadInt();
@@ -441,7 +441,7 @@ namespace Hessian.Lite
             }
         }
 
-        public byte[] ReadBytes()//, int offset, int count
+        public byte[] ReadBytes()
         {
             int length;
             var tag = _reader.ReadByte();
@@ -500,177 +500,131 @@ namespace Hessian.Lite
             var chunk = new byte[length];
             _reader.ReadBuffer(chunk);
             return chunk;
+        }
 
-            //if (readState == 2)
-            //{
-            //    readState = 0;
-            //    return -1;
-            //}
-            //else if (readState == 0)
-            //{
-            //    var tag = _reader.ReadByte();
-            //    switch (tag)
-            //    {
-            //        case Constants.Null:
-            //            return -1;
-            //        case Constants.BinaryChunk:
-            //        case Constants.BinaryFinalChunk:
-            //            break;
-            //        default:
-            //            throw new Exception();
-            //    }
-            //}
-
-            //return -1;
-            //else if (_chunkLength == 0)
-            //{
-            //    int tag = read();
-
-            //    switch (tag)
-            //    {
-            //        case 'N':
-            //            return -1;
-
-            //        case 'B':
-            //        case BC_BINARY_CHUNK:
-            //            _isLastChunk = tag == 'B';
-            //            _chunkLength = (read() << 8) + read();
-            //            break;
-
-            //        default:
-            //            throw expect("binary", tag);
-            //    }
-            //}
-
-            //while (length > 0)
-            //{
-            //    if (_chunkLength > 0)
-            //    {
-            //        buffer[offset++] = (byte)read();
-            //        _chunkLength--;
-            //        length--;
-            //        readLength++;
-            //    }
-            //    else if (_isLastChunk)
-            //    {
-            //        if (readLength == 0)
-            //            return -1;
-            //        else
-            //        {
-            //            _chunkLength = END_OF_DATA;
-            //            return readLength;
-            //        }
-            //    }
-            //    else
-            //    {
-            //        int tag = read();
-
-            //        switch (tag)
-            //        {
-            //            case 'B':
-            //            case BC_BINARY_CHUNK:
-            //                _isLastChunk = tag == 'B';
-            //                _chunkLength = (read() << 8) + read();
-            //                break;
-
-            //            default:
-            //                throw expect("binary", tag);
-            //        }
-            //    }
-            //}
-
-            //if (readLength == 0)
-            //    return -1;
-            //else if (_chunkLength > 0 || !_isLastChunk)
-            //    return readLength;
-            //else
-            //{
-            //    _chunkLength = END_OF_DATA;
-            //    return readLength;
-            //}
+        private bool ReadStringLength(out int length)
+        {
+            var tag = _reader.ReadByte();
+            switch (tag)
+            {
+                case Constants.String:
+                    length = _reader.ReadInt(2);
+                    return false;
+                case Constants.StringFinal:
+                    length = _reader.ReadInt(2);
+                    return true;
+                case 0x00:
+                case 0x01:
+                case 0x02:
+                case 0x03:
+                case 0x04:
+                case 0x05:
+                case 0x06:
+                case 0x07:
+                case 0x08:
+                case 0x09:
+                case 0x0a:
+                case 0x0b:
+                case 0x0c:
+                case 0x0d:
+                case 0x0e:
+                case 0x0f:
+                case 0x10:
+                case 0x11:
+                case 0x12:
+                case 0x13:
+                case 0x14:
+                case 0x15:
+                case 0x16:
+                case 0x17:
+                case 0x18:
+                case 0x19:
+                case 0x1a:
+                case 0x1b:
+                case 0x1c:
+                case 0x1d:
+                case 0x1e:
+                case 0x1f:
+                    length = tag;
+                    return true;
+                case 0x30:
+                case 0x31:
+                case 0x32:
+                case 0x33:
+                    length = (tag - Constants.StringMediumStart) << 8 + _reader.ReadByte();
+                    return true;
+                default:
+                    throw RaiseError("string", tag);
+            }
         }
 
         public string ReadString()
         {
-            int tag = _reader.ReadByte();
+            var tag = _reader.ReadByte();
+            int length;
             switch (tag)
             {
                 case Constants.Null:
                     return null;
-                //case 'S':
-                //case BC_STRING_CHUNK:
-                //    _isLastChunk = tag == 'S';
-                //    _chunkLength = (read() << 8) + read();
+                case Constants.String:
+                    length = _reader.ReadInt(2);
+                    var str = new StringBuilder();
+                    var isLast = false;
+                    while (!isLast)
+                    {
+                        str.Append(_reader.ReadUtf8String(length));
+                        isLast = ReadStringLength(out length);
+                    }
 
-                //    _sbuf.setLength(0);
-                //    int ch;
-
-                //    while ((ch = parseChar()) >= 0)
-                //        _sbuf.append((char)ch);
-
-                //    return _sbuf.toString();
-
-                //// 0-byte string
-                //case 0x00:
-                //case 0x01:
-                //case 0x02:
-                //case 0x03:
-                //case 0x04:
-                //case 0x05:
-                //case 0x06:
-                //case 0x07:
-                //case 0x08:
-                //case 0x09:
-                //case 0x0a:
-                //case 0x0b:
-                //case 0x0c:
-                //case 0x0d:
-                //case 0x0e:
-                //case 0x0f:
-
-                //case 0x10:
-                //case 0x11:
-                //case 0x12:
-                //case 0x13:
-                //case 0x14:
-                //case 0x15:
-                //case 0x16:
-                //case 0x17:
-                //case 0x18:
-                //case 0x19:
-                //case 0x1a:
-                //case 0x1b:
-                //case 0x1c:
-                //case 0x1d:
-                //case 0x1e:
-                //case 0x1f:
-                //    _isLastChunk = true;
-                //    _chunkLength = tag - 0x00;
-
-                //    _sbuf.setLength(0);
-
-                //    while ((ch = parseChar()) >= 0)
-                //        _sbuf.append((char)ch);
-
-                //    return _sbuf.toString();
-
-                //case 0x30:
-                //case 0x31:
-                //case 0x32:
-                //case 0x33:
-                //    _isLastChunk = true;
-                //    _chunkLength = (tag - 0x30) * 256 + read();
-
-                //    _sbuf.setLength(0);
-
-                //    while ((ch = parseChar()) >= 0)
-                //        _sbuf.append((char)ch);
-
-                //    return _sbuf.toString();
-
+                    return str.ToString();
+                case Constants.StringFinal:
+                    length = _reader.ReadInt(2);
+                    break;
+                case 0x00:
+                case 0x01:
+                case 0x02:
+                case 0x03:
+                case 0x04:
+                case 0x05:
+                case 0x06:
+                case 0x07:
+                case 0x08:
+                case 0x09:
+                case 0x0a:
+                case 0x0b:
+                case 0x0c:
+                case 0x0d:
+                case 0x0e:
+                case 0x0f:
+                case 0x10:
+                case 0x11:
+                case 0x12:
+                case 0x13:
+                case 0x14:
+                case 0x15:
+                case 0x16:
+                case 0x17:
+                case 0x18:
+                case 0x19:
+                case 0x1a:
+                case 0x1b:
+                case 0x1c:
+                case 0x1d:
+                case 0x1e:
+                case 0x1f:
+                    length = tag;
+                    break;
+                case 0x30:
+                case 0x31:
+                case 0x32:
+                case 0x33:
+                    length = (tag - Constants.StringMediumStart) << 8 + _reader.ReadByte();
+                    break;
                 default:
                     throw RaiseError("string", tag);
             }
+
+            return _reader.ReadUtf8String(length);
         }
     }
 }
