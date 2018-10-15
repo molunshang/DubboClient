@@ -1,4 +1,7 @@
-﻿using System;
+﻿using Hessian.Lite.Exception;
+using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
@@ -7,15 +10,18 @@ namespace Hessian.Lite
     public class Hessian2Reader
     {
         private readonly Stream _reader;
-
+        private readonly List<string> types;
+        private readonly List<object> refs;
         public Hessian2Reader(Stream reader)
         {
-            _reader = reader;
+            _reader = reader.CanSeek ? reader : new BufferedStream(reader);
+            types = new List<string>();
+            refs = new List<object>();
         }
 
-        private Exception RaiseError(string msg, int tag)
+        private HessianException RaiseError(string msg, int tag)
         {
-            throw new ArgumentException(msg);
+            throw new HessianException(tag, $"unknown code {tag} where read {msg}");
         }
 
         private bool TryReadBool(int tag, out bool result)
@@ -243,15 +249,146 @@ namespace Hessian.Lite
             return true;
         }
 
-        public object ReadObject()
+        private bool TryReadDate(int tag, out DateTime result)
         {
-            return null;
+            switch (tag)
+            {
+                case Constants.DateTimeMillisecond:
+                    result = DateTimeUtils.UtcStartTime.AddMilliseconds(_reader.ReadLong());
+                    return true;
+                case Constants.DateTimeMinute:
+                    result = DateTimeUtils.UtcStartTime.AddMinutes(_reader.ReadInt());
+                    return true;
+                default:
+                    result = default(DateTime);
+                    return false;
+            }
         }
 
-        public T ReadObject<T>()
+        private bool ReadStringLength(out int length)
         {
-            return default(T);
+            var tag = _reader.ReadByte();
+            switch (tag)
+            {
+                case Constants.String:
+                    length = _reader.ReadInt(2);
+                    return false;
+                case Constants.StringFinal:
+                    length = _reader.ReadInt(2);
+                    return true;
+                case 0x00:
+                case 0x01:
+                case 0x02:
+                case 0x03:
+                case 0x04:
+                case 0x05:
+                case 0x06:
+                case 0x07:
+                case 0x08:
+                case 0x09:
+                case 0x0a:
+                case 0x0b:
+                case 0x0c:
+                case 0x0d:
+                case 0x0e:
+                case 0x0f:
+                case 0x10:
+                case 0x11:
+                case 0x12:
+                case 0x13:
+                case 0x14:
+                case 0x15:
+                case 0x16:
+                case 0x17:
+                case 0x18:
+                case 0x19:
+                case 0x1a:
+                case 0x1b:
+                case 0x1c:
+                case 0x1d:
+                case 0x1e:
+                case 0x1f:
+                    length = tag;
+                    return true;
+                case 0x30:
+                case 0x31:
+                case 0x32:
+                case 0x33:
+                    length = (tag - Constants.StringMediumStart) << 8 + _reader.ReadByte();
+                    return true;
+                default:
+                    throw RaiseError("string", tag);
+            }
         }
+
+        private bool TryReadString(int tag, out string result)
+        {
+            int length;
+            switch (tag)
+            {
+                case Constants.String:
+                    length = _reader.ReadInt(2);
+                    var str = new StringBuilder();
+                    var isLast = false;
+                    while (!isLast)
+                    {
+                        str.Append(_reader.ReadUtf8String(length));
+                        isLast = ReadStringLength(out length);
+                    }
+                    result = str.ToString();
+                    return true;
+                case Constants.StringFinal:
+                    length = _reader.ReadInt(2);
+                    break;
+                case 0x00:
+                case 0x01:
+                case 0x02:
+                case 0x03:
+                case 0x04:
+                case 0x05:
+                case 0x06:
+                case 0x07:
+                case 0x08:
+                case 0x09:
+                case 0x0a:
+                case 0x0b:
+                case 0x0c:
+                case 0x0d:
+                case 0x0e:
+                case 0x0f:
+                case 0x10:
+                case 0x11:
+                case 0x12:
+                case 0x13:
+                case 0x14:
+                case 0x15:
+                case 0x16:
+                case 0x17:
+                case 0x18:
+                case 0x19:
+                case 0x1a:
+                case 0x1b:
+                case 0x1c:
+                case 0x1d:
+                case 0x1e:
+                case 0x1f:
+                    length = tag;
+                    break;
+                case 0x30:
+                case 0x31:
+                case 0x32:
+                case 0x33:
+                    length = (tag - Constants.StringMediumStart) << 8 + _reader.ReadByte();
+                    break;
+                default:
+                    result = null;
+                    return false;
+            }
+
+            result = _reader.ReadUtf8String(length);
+            return true;
+        }
+
 
         public void ReadNull()
         {
@@ -387,19 +524,21 @@ namespace Hessian.Lite
             throw RaiseError("double", tag);
         }
 
+
         public DateTime ReadDate()
         {
             var tag = _reader.ReadByte();
-            switch (tag)
+            if (tag == Constants.Null)
             {
-                case Constants.DateTimeMillisecond:
-                    return DateTimeUtils.UtcStartTime.AddMilliseconds(_reader.ReadLong());
-                case Constants.DateTimeMinute:
-                    return DateTimeUtils.UtcStartTime.AddMinutes(_reader.ReadInt());
-                default:
-                    throw RaiseError("date", tag);
+                return default(DateTime);
             }
+            if (TryReadDate(tag, out var result))
+            {
+                return result;
+            }
+            throw RaiseError("date", tag);
         }
+
 
         private bool ReadChunkLength(out int length)
         {
@@ -441,14 +580,11 @@ namespace Hessian.Lite
             }
         }
 
-        public byte[] ReadBytes()
+        private bool TryReadBytes(int tag, out byte[] result)
         {
             int length;
-            var tag = _reader.ReadByte();
             switch (tag)
             {
-                case Constants.Null:
-                    return null;
                 case Constants.BinaryChunk:
                     length = _reader.ReadInt(2);
                     var buffer = new byte[length];
@@ -465,8 +601,10 @@ namespace Hessian.Lite
                                 buffer = new byte[length];
                             }
                         }
-                        return dataStream.ToArray();
+                        result = dataStream.ToArray();
                     }
+
+                    return true;
                 case Constants.BinaryFinalChunk:
                     length = _reader.ReadInt(2);
                     break;
@@ -495,136 +633,323 @@ namespace Hessian.Lite
                     length = (tag - 0x34) << 8 | _reader.ReadByte();
                     break;
                 default:
-                    throw RaiseError("bytes", tag);
+                    result = null;
+                    return false;
             }
-            var chunk = new byte[length];
-            _reader.ReadBuffer(chunk);
-            return chunk;
+            result = new byte[length];
+            _reader.ReadBuffer(result);
+            return true;
         }
-
-        private bool ReadStringLength(out int length)
+        public byte[] ReadBytes()
         {
             var tag = _reader.ReadByte();
-            switch (tag)
+            if (tag == Constants.Null)
             {
-                case Constants.String:
-                    length = _reader.ReadInt(2);
-                    return false;
-                case Constants.StringFinal:
-                    length = _reader.ReadInt(2);
-                    return true;
-                case 0x00:
-                case 0x01:
-                case 0x02:
-                case 0x03:
-                case 0x04:
-                case 0x05:
-                case 0x06:
-                case 0x07:
-                case 0x08:
-                case 0x09:
-                case 0x0a:
-                case 0x0b:
-                case 0x0c:
-                case 0x0d:
-                case 0x0e:
-                case 0x0f:
-                case 0x10:
-                case 0x11:
-                case 0x12:
-                case 0x13:
-                case 0x14:
-                case 0x15:
-                case 0x16:
-                case 0x17:
-                case 0x18:
-                case 0x19:
-                case 0x1a:
-                case 0x1b:
-                case 0x1c:
-                case 0x1d:
-                case 0x1e:
-                case 0x1f:
-                    length = tag;
-                    return true;
-                case 0x30:
-                case 0x31:
-                case 0x32:
-                case 0x33:
-                    length = (tag - Constants.StringMediumStart) << 8 + _reader.ReadByte();
-                    return true;
-                default:
-                    throw RaiseError("string", tag);
+                return null;
             }
+
+            if (TryReadBytes(tag, out var result))
+            {
+                return result;
+            }
+            throw RaiseError("bytes", tag);
         }
+
+
 
         public string ReadString()
         {
             var tag = _reader.ReadByte();
-            int length;
-            switch (tag)
+            if (tag == Constants.Null)
             {
-                case Constants.Null:
-                    return null;
-                case Constants.String:
-                    length = _reader.ReadInt(2);
-                    var str = new StringBuilder();
-                    var isLast = false;
-                    while (!isLast)
-                    {
-                        str.Append(_reader.ReadUtf8String(length));
-                        isLast = ReadStringLength(out length);
-                    }
-
-                    return str.ToString();
-                case Constants.StringFinal:
-                    length = _reader.ReadInt(2);
-                    break;
-                case 0x00:
-                case 0x01:
-                case 0x02:
-                case 0x03:
-                case 0x04:
-                case 0x05:
-                case 0x06:
-                case 0x07:
-                case 0x08:
-                case 0x09:
-                case 0x0a:
-                case 0x0b:
-                case 0x0c:
-                case 0x0d:
-                case 0x0e:
-                case 0x0f:
-                case 0x10:
-                case 0x11:
-                case 0x12:
-                case 0x13:
-                case 0x14:
-                case 0x15:
-                case 0x16:
-                case 0x17:
-                case 0x18:
-                case 0x19:
-                case 0x1a:
-                case 0x1b:
-                case 0x1c:
-                case 0x1d:
-                case 0x1e:
-                case 0x1f:
-                    length = tag;
-                    break;
-                case 0x30:
-                case 0x31:
-                case 0x32:
-                case 0x33:
-                    length = (tag - Constants.StringMediumStart) << 8 + _reader.ReadByte();
-                    break;
-                default:
-                    throw RaiseError("string", tag);
+                return null;
             }
 
-            return _reader.ReadUtf8String(length);
+            if (TryReadString(tag, out var result))
+            {
+                return result;
+            }
+            if (TryReadDouble(tag, out var doubleVal))
+            {
+                return doubleVal.ToString();
+            }
+            if (TryReadInt(tag, out var intResult))
+            {
+                return intResult.ToString();
+            }
+
+            if (TryReadBool(tag, out var boolResult))
+            {
+                return boolResult ? "1" : "0";
+            }
+
+            if (TryReadLong(tag, out var longResult))
+            {
+                return longResult.ToString();
+            }
+
+            if (TryReadDate(tag, out var dateResult))
+            {
+                return dateResult.ToString();
+            }
+
+            throw RaiseError("string", tag);
+        }
+
+        public string ReadType()
+        {
+            var tag = _reader.ReadByte();
+            if (TryReadString(tag, out var type))
+            {
+                types.Add(type);
+                return type;
+            }
+
+            if (!TryReadInt(tag, out var index))
+                throw RaiseError("type", tag);
+            if (index < types.Count)
+            {
+                return types[index];
+            }
+            throw new IndexOutOfRangeException($"type ref #{index} is greater than the number of valid types ({types.Count})");
+        }
+
+        private bool TryReadList(int tag, out IList result)
+        {
+            switch (tag)
+            {
+                case Constants.VariableList:
+                    var type = ReadType();
+                    break;
+                case Constants.VariableUnTypeList:
+                    break;
+            }
+            //    case BC_LIST_VARIABLE:
+            //        {
+            //            // variable length list
+            //            String type = readType();
+
+            //            return findSerializerFactory().readList(this, -1, type);
+            //        }
+
+            //    case BC_LIST_VARIABLE_UNTYPED:
+            //        {
+            //            return findSerializerFactory().readList(this, -1, null);
+            //        }
+
+            //    case BC_LIST_FIXED:
+            //        {
+            //            // fixed length lists
+            //            String type = readType();
+            //            int length = readInt();
+
+            //            Deserializer reader;
+            //            reader = findSerializerFactory().getListDeserializer(type, null);
+
+            //            return reader.readLengthList(this, length);
+            //        }
+
+            //    case BC_LIST_FIXED_UNTYPED:
+            //        {
+            //            // fixed length lists
+            //            int length = readInt();
+
+            //            Deserializer reader;
+            //            reader = findSerializerFactory().getListDeserializer(null, null);
+
+            //            return reader.readLengthList(this, length);
+            //        }
+
+            //    // compact fixed list
+            //    case 0x70:
+            //    case 0x71:
+            //    case 0x72:
+            //    case 0x73:
+            //    case 0x74:
+            //    case 0x75:
+            //    case 0x76:
+            //    case 0x77:
+            //        {
+            //            // fixed length lists
+            //            String type = readType();
+            //            int length = tag - 0x70;
+
+            //            Deserializer reader;
+            //            reader = findSerializerFactory().getListDeserializer(type, null);
+
+            //            return reader.readLengthList(this, length);
+            //        }
+
+            //    // compact fixed untyped list
+            //    case 0x78:
+            //    case 0x79:
+            //    case 0x7a:
+            //    case 0x7b:
+            //    case 0x7c:
+            //    case 0x7d:
+            //    case 0x7e:
+            //    case 0x7f:
+            //        {
+            //            // fixed length lists
+            //            int length = tag - 0x78;
+
+            //            Deserializer reader;
+            //            reader = findSerializerFactory().getListDeserializer(null, null);
+
+            //            return reader.readLengthList(this, length);
+            //        }
+            result = null;
+            return false;
+        }
+
+        public int ReadListStart()
+        {
+            return _reader.ReadByte();
+        }
+
+        public bool HasEnd()
+        {
+            int code = _reader.ReadByte();
+            if (code < 0)
+                return true;
+            _reader.Seek(-1, SeekOrigin.Current);
+            return code == Constants.End;
+        }
+
+        public void ReadToEnd()
+        {
+            var code = _reader.ReadByte();
+            if (code == Constants.End)
+            {
+                return;
+            }
+
+            throw RaiseError("list/map end", code);
+        }
+
+        public int AddRef(object obj)
+        {
+            refs.Add(obj);
+            return refs.Count - 1;
+        }
+
+        public object ReadObject()
+        {
+            var tag = _reader.ReadByte();
+            if (tag == Constants.Null)
+            {
+                return null;
+            }
+
+            if (TryReadBool(tag, out var boolVal))
+            {
+                return boolVal;
+            }
+
+            if (TryReadInt(tag, out var intVal))
+            {
+                return intVal;
+            }
+
+            if (TryReadLong(tag, out var longVal))
+            {
+                return longVal;
+            }
+
+            if (TryReadDouble(tag, out var doubleVal))
+            {
+                return doubleVal;
+            }
+
+            if (TryReadDate(tag, out var dateVal))
+            {
+                return dateVal;
+            }
+
+            if (TryReadString(tag, out var strVal))
+            {
+                return strVal;
+            }
+
+            if (TryReadBytes(tag, out var bytesVal))
+            {
+                return bytesVal;
+            }
+
+
+
+            //    case 'H':
+            //        {
+            //            return findSerializerFactory().readMap(this, null);
+            //        }
+
+            //    case 'M':
+            //        {
+            //            String type = readType();
+
+            //            return findSerializerFactory().readMap(this, type);
+            //        }
+
+            //    case 'C':
+            //        {
+            //            readObjectDefinition(null);
+
+            //            return readObject();
+            //        }
+
+            //    case 0x60:
+            //    case 0x61:
+            //    case 0x62:
+            //    case 0x63:
+            //    case 0x64:
+            //    case 0x65:
+            //    case 0x66:
+            //    case 0x67:
+            //    case 0x68:
+            //    case 0x69:
+            //    case 0x6a:
+            //    case 0x6b:
+            //    case 0x6c:
+            //    case 0x6d:
+            //    case 0x6e:
+            //    case 0x6f:
+            //        {
+            //            int ref = tag - 0x60;
+
+            //            if (_classDefs == null)
+            //                throw error("No classes defined at reference '{0}'" + tag);
+
+            //            ObjectDefinition def = (ObjectDefinition)_classDefs.get(ref);
+
+            //            return readObjectInstance(null, def);
+            //        }
+
+            //    case 'O':
+            //        {
+            //            int ref = readInt();
+
+            //            ObjectDefinition def = (ObjectDefinition)_classDefs.get(ref);
+
+            //            return readObjectInstance(null, def);
+            //        }
+
+            //    case BC_REF:
+            //        {
+            //            int ref = readInt();
+
+            //            return _refs.get(ref);
+            //        }
+
+            //    default:
+            //        if (tag < 0)
+            //            throw new EOFException("readObject: unexpected end of file");
+            //        else
+            throw RaiseError("object", tag);
+        }
+
+        public T ReadObject<T>()
+        {
+            throw new NotImplementedException();
         }
     }
 }
