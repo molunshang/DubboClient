@@ -357,7 +357,7 @@ namespace Hessian.Lite
             byte[] buffer = null;
             try
             {
-                buffer = ArrayPool<byte>.Shared.Rent(1024);
+                buffer = ArrayPool<byte>.Shared.Rent(4096);
                 int count;
                 while ((count = stream.Read(buffer, 0, buffer.Length)) > 0)
                 {

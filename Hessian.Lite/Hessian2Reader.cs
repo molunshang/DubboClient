@@ -21,7 +21,7 @@ namespace Hessian.Lite
 
         private HessianException RaiseError(string msg, int tag)
         {
-            throw new HessianException(tag, $"unknown code {tag} where read {msg}");
+            throw new HessianException($"unknown code {tag} where read {msg}");
         }
 
         private bool TryReadBool(int tag, out bool result)

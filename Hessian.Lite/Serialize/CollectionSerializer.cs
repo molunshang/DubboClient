@@ -7,8 +7,8 @@ namespace Hessian.Lite.Serialize
     {
         protected override bool WriteListBegin(object obj, Hessian2Writer writer)
         {
-            var collection = (ICollection)obj;
             var listType = obj.GetType();
+            var collection = (ICollection)obj;
             if (listType.IsGenericType)
             {
                 var genericType = listType.GetGenericTypeDefinition();

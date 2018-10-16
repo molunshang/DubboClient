@@ -2,7 +2,7 @@
 
 namespace Hessian.Lite.Deserialize
 {
-    public class StringDeserializer : AbstractHessianDeserializer
+    public class StringDeserializer : AbstractDeserializer
     {
 
         private readonly Func<string, object> convertFunc;

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Hessian.Lite.Deserialize
 {
-    public class ArrayDeserializer<T> : AbstractHessianDeserializer
+    public class ArrayDeserializer<T> : AbstractDeserializer
     {
         public override Type Type { get; }
         public ArrayDeserializer()
@@ -11,10 +11,10 @@ namespace Hessian.Lite.Deserialize
             Type = typeof(T).MakeArrayType();
         }
 
-        public static AbstractHessianDeserializer CreateDeserializer(Type type)
+        public static AbstractDeserializer CreateDeserializer(Type type)
         {
             var deserializeType = typeof(ArrayDeserializer<>).MakeGenericType(type);
-            return (AbstractHessianDeserializer)Activator.CreateInstance(deserializeType);
+            return (AbstractDeserializer)Activator.CreateInstance(deserializeType);
         }
 
         public override object ReadObject(Hessian2Reader reader)

@@ -5,7 +5,7 @@ using System.ComponentModel;
 
 namespace Hessian.Lite.Deserialize
 {
-    public class BasicDeserializer : AbstractHessianDeserializer
+    public class BasicDeserializer : AbstractDeserializer
     {
         private readonly BasicType _type;
 
