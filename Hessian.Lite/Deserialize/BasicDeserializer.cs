@@ -12,75 +12,73 @@ namespace Hessian.Lite.Deserialize
         public BasicDeserializer(BasicType type)
         {
             _type = type;
+            Type = GetBasicType();
         }
 
-        public override Type Type
+        private Type GetBasicType()
         {
-            get
+            switch (_type)
             {
-                switch (_type)
-                {
-                    case BasicType.Null:
-                        return typeof(void);
-                    case BasicType.Bool:
-                        return typeof(bool);
-                    case BasicType.Byte:
-                        return typeof(byte);
-                    case BasicType.SByte:
-                        return typeof(sbyte);
-                    case BasicType.Short:
-                        return typeof(short);
-                    case BasicType.UShort:
-                        return typeof(ushort);
-                    case BasicType.Int:
-                        return typeof(int);
-                    case BasicType.UInt:
-                        return typeof(uint);
-                    case BasicType.Long:
-                        return typeof(long);
-                    case BasicType.Float:
-                        return typeof(float);
-                    case BasicType.Double:
-                        return typeof(double);
-                    case BasicType.Char:
-                        return typeof(char);
-                    case BasicType.String:
-                        return typeof(string);
-                    case BasicType.Date:
-                        return typeof(DateTime);
-                    case BasicType.Object:
-                        return typeof(object);
-                    case BasicType.CharArray:
-                        return typeof(char[]);
-                    case BasicType.BoolArray:
-                        return typeof(bool[]);
-                    case BasicType.ByteArray:
-                        return typeof(byte[]);
-                    case BasicType.SByteArray:
-                        return typeof(sbyte[]);
-                    case BasicType.ShortArray:
-                        return typeof(short[]);
-                    case BasicType.UShortArray:
-                        return typeof(ushort[]);
-                    case BasicType.IntArray:
-                        return typeof(int[]);
-                    case BasicType.UIntArray:
-                        return typeof(uint[]);
-                    case BasicType.LongArray:
-                        return typeof(long[]);
-                    case BasicType.FloatArray:
-                        return typeof(float[]);
-                    case BasicType.DoubleArray:
-                        return typeof(double[]);
-                    case BasicType.StringArray:
-                        return typeof(string[]);
-                    case BasicType.DateArray:
-                        return typeof(DateTime[]);
-                    case BasicType.ObjectArray:
-                        return typeof(object[]);
-                    default:
-                        throw new InvalidEnumArgumentException();
-                }
+                case BasicType.Null:
+                    return typeof(void);
+                case BasicType.Bool:
+                    return typeof(bool);
+                case BasicType.Byte:
+                    return typeof(byte);
+                case BasicType.SByte:
+                    return typeof(sbyte);
+                case BasicType.Short:
+                    return typeof(short);
+                case BasicType.UShort:
+                    return typeof(ushort);
+                case BasicType.Int:
+                    return typeof(int);
+                case BasicType.UInt:
+                    return typeof(uint);
+                case BasicType.Long:
+                    return typeof(long);
+                case BasicType.Float:
+                    return typeof(float);
+                case BasicType.Double:
+                    return typeof(double);
+                case BasicType.Char:
+                    return typeof(char);
+                case BasicType.String:
+                    return typeof(string);
+                case BasicType.Date:
+                    return typeof(DateTime);
+                case BasicType.Object:
+                    return typeof(object);
+                case BasicType.CharArray:
+                    return typeof(char[]);
+                case BasicType.BoolArray:
+                    return typeof(bool[]);
+                case BasicType.ByteArray:
+                    return typeof(byte[]);
+                case BasicType.SByteArray:
+                    return typeof(sbyte[]);
+                case BasicType.ShortArray:
+                    return typeof(short[]);
+                case BasicType.UShortArray:
+                    return typeof(ushort[]);
+                case BasicType.IntArray:
+                    return typeof(int[]);
+                case BasicType.UIntArray:
+                    return typeof(uint[]);
+                case BasicType.LongArray:
+                    return typeof(long[]);
+                case BasicType.FloatArray:
+                    return typeof(float[]);
+                case BasicType.DoubleArray:
+                    return typeof(double[]);
+                case BasicType.StringArray:
+                    return typeof(string[]);
+                case BasicType.DateArray:
+                    return typeof(DateTime[]);
+                case BasicType.ObjectArray:
+                    return typeof(object[]);
+                default:
+                    throw new InvalidEnumArgumentException();
             }
         }
 
@@ -168,7 +166,7 @@ namespace Hessian.Lite.Deserialize
         }
         public override object ReadList(Hessian2Reader reader, int length)
         {
-            if (length > 0)
+            if (length >= 0)
             {
                 switch (_type)
                 {

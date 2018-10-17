@@ -8,11 +8,11 @@ namespace Hessian.Lite.Serialize
         {
             var type = obj.GetType();
             var name = Enum.GetName(type, obj);
-            if (!writer.WriteObjectHeader(type.FullName))
+            if (!writer.WriteObjectHeader(type.AssemblyQualifiedName))
             {
                 writer.WriteInt(1);
                 writer.WriteString("name");
-                writer.WriteObjectHeader(type.FullName);
+                writer.WriteObjectHeader(type.AssemblyQualifiedName);
             }
             writer.WriteString(name);
         }

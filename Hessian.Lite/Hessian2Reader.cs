@@ -1,6 +1,6 @@
-﻿using Hessian.Lite.Exception;
+﻿using Hessian.Lite.Deserialize;
+using Hessian.Lite.Exception;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -12,11 +12,13 @@ namespace Hessian.Lite
         private readonly Stream _reader;
         private readonly List<string> types;
         private readonly List<object> refs;
+        private readonly List<ObjectDefinition> defs;
         public Hessian2Reader(Stream reader)
         {
             _reader = reader.CanSeek ? reader : new BufferedStream(reader);
             types = new List<string>();
             refs = new List<object>();
+            defs = new List<ObjectDefinition>();
         }
 
         private HessianException RaiseError(string msg, int tag)
@@ -378,7 +380,7 @@ namespace Hessian.Lite
                 case 0x31:
                 case 0x32:
                 case 0x33:
-                    length = (tag - Constants.StringMediumStart) << 8 + _reader.ReadByte();
+                    length = ((tag - Constants.StringMediumStart) << 8) + _reader.ReadByte();
                     break;
                 default:
                     result = null;
@@ -389,6 +391,241 @@ namespace Hessian.Lite
             return true;
         }
 
+        private bool ReadChunkLength(out int length)
+        {
+            var tag = _reader.ReadByte();
+            switch (tag)
+            {
+                case Constants.BinaryChunk:
+                    length = _reader.ReadInt(2);
+                    return false;
+                case Constants.BinaryFinalChunk:
+                    length = _reader.ReadInt(2);
+                    return true;
+                case 0x20:
+                case 0x21:
+                case 0x22:
+                case 0x23:
+                case 0x24:
+                case 0x25:
+                case 0x26:
+                case 0x27:
+                case 0x28:
+                case 0x29:
+                case 0x2a:
+                case 0x2b:
+                case 0x2c:
+                case 0x2d:
+                case 0x2e:
+                case 0x2f:
+                    length = tag - 0x20;
+                    return true;
+                case 0x34:
+                case 0x35:
+                case 0x36:
+                case 0x37:
+                    length = (tag - 0x34) << 8 | _reader.ReadByte();
+                    return true;
+                default:
+                    throw RaiseError("bytes", tag);
+            }
+        }
+
+        private bool TryReadBytes(int tag, out byte[] result)
+        {
+            int length;
+            switch (tag)
+            {
+                case Constants.BinaryChunk:
+                    length = _reader.ReadInt(2);
+                    var buffer = new byte[length];
+                    using (var dataStream = new MemoryStream())
+                    {
+                        var isLastChunk = false;
+                        while (!isLastChunk)
+                        {
+                            _reader.ReadBuffer(buffer, length);
+                            dataStream.Write(buffer, 0, length);
+                            isLastChunk = ReadChunkLength(out length);
+                            if (buffer.Length < length)
+                            {
+                                buffer = new byte[length];
+                            }
+                        }
+                        result = dataStream.ToArray();
+                    }
+
+                    return true;
+                case Constants.BinaryFinalChunk:
+                    length = _reader.ReadInt(2);
+                    break;
+                case 0x20:
+                case 0x21:
+                case 0x22:
+                case 0x23:
+                case 0x24:
+                case 0x25:
+                case 0x26:
+                case 0x27:
+                case 0x28:
+                case 0x29:
+                case 0x2a:
+                case 0x2b:
+                case 0x2c:
+                case 0x2d:
+                case 0x2e:
+                case 0x2f:
+                    length = tag - 0x20;
+                    break;
+                case 0x34:
+                case 0x35:
+                case 0x36:
+                case 0x37:
+                    length = (tag - 0x34) << 8 | _reader.ReadByte();
+                    break;
+                default:
+                    result = null;
+                    return false;
+            }
+            result = new byte[length];
+            _reader.ReadBuffer(result);
+            return true;
+        }
+
+        private bool TryReadList(int tag, out object list)
+        {
+            IHessianDeserializer deserializer;
+            switch (tag)
+            {
+                case Constants.VariableList:
+                    deserializer = SerializeFactory.GetDeserializer(ReadType());
+                    list = deserializer.ReadList(this, -1);
+                    break;
+                case Constants.VariableUnTypeList:
+                    deserializer = SerializeFactory.GetDeserializer(SerializeFactory.DefaultCollectionType);
+                    list = deserializer.ReadList(this, -1);
+                    break;
+                case Constants.FixedList:
+                    deserializer = SerializeFactory.GetDeserializer(ReadType());
+                    list = deserializer.ReadList(this, ReadInt());
+                    break;
+                case Constants.FixedUnTypeList:
+                    deserializer = SerializeFactory.GetDeserializer(SerializeFactory.DefaultCollectionType);
+                    list = deserializer.ReadList(this, ReadInt());
+                    break;
+                case 0x70:
+                case 0x71:
+                case 0x72:
+                case 0x73:
+                case 0x74:
+                case 0x75:
+                case 0x76:
+                case 0x77:
+                    deserializer = SerializeFactory.GetDeserializer(ReadType());
+                    list = deserializer.ReadList(this, tag - 0x70);
+                    break;
+                case 0x78:
+                case 0x79:
+                case 0x7a:
+                case 0x7b:
+                case 0x7c:
+                case 0x7d:
+                case 0x7e:
+                case 0x7f:
+                    deserializer = SerializeFactory.GetDeserializer(SerializeFactory.DefaultCollectionType);
+                    list = deserializer.ReadList(this, tag - 0x78);
+                    break;
+                default:
+                    list = null;
+                    return false;
+            }
+
+            return true;
+        }
+
+        private bool TryReadMap(int tag, out object map)
+        {
+            IHessianDeserializer deserializer;
+            switch (tag)
+            {
+                case Constants.UnTypeMap:
+                    deserializer = SerializeFactory.GetDeserializer(SerializeFactory.DefaultDictionaryType);
+                    map = deserializer.ReadMap(this);
+                    return true;
+                case Constants.Map:
+                    deserializer = SerializeFactory.GetDeserializer(ReadType());
+                    map = deserializer.ReadMap(this);
+                    return true;
+                default:
+                    map = null;
+                    return false;
+            }
+        }
+
+        private bool TryReadObject(int tag, out object obj)
+        {
+            switch (tag)
+            {
+                case Constants.ClassDef:
+                    ReadObjectDefinition();
+                    obj = ReadObject();
+                    return true;
+                case 0x60:
+                case 0x61:
+                case 0x62:
+                case 0x63:
+                case 0x64:
+                case 0x65:
+                case 0x66:
+                case 0x67:
+                case 0x68:
+                case 0x69:
+                case 0x6a:
+                case 0x6b:
+                case 0x6c:
+                case 0x6d:
+                case 0x6e:
+                case 0x6f:
+                    var refIndex = tag - 0x60;
+                    if (defs.Count <= 0)
+                        throw new HessianException($"No classes defined at reference '{refIndex}'");
+                    obj = ReadObjectInstance(null, defs[refIndex]);
+                    return true;
+                case Constants.Object:
+                    refIndex = ReadInt();
+                    if (defs.Count <= 0)
+                        throw new HessianException($"No classes defined at reference '{refIndex}'");
+                    obj = ReadObjectInstance(null, defs[refIndex]);
+                    return true;
+                case Constants.Ref:
+                    refIndex = ReadInt();
+                    obj = refs[refIndex];
+                    return true;
+                default:
+                    obj = null;
+                    return false;
+            }
+        }
+
+
+        private object ReadObjectInstance(Type type, ObjectDefinition def)
+        {
+            var deserializer = type == null ? SerializeFactory.GetDeserializer(def.Type) : SerializeFactory.GetDeserializer(type);
+            return deserializer.ReadObject(this, def.Fields);
+        }
+
+        public void ReadObjectDefinition()
+        {
+            var type = ReadString();
+            var len = ReadInt();
+
+            var fieldNames = new string[len];
+            for (var i = 0; i < len; i++)
+                fieldNames[i] = ReadString();
+
+            var def = new ObjectDefinition(type, fieldNames);
+            defs.Add(def);
+        }
 
         public void ReadNull()
         {
@@ -540,106 +777,6 @@ namespace Hessian.Lite
         }
 
 
-        private bool ReadChunkLength(out int length)
-        {
-            var tag = _reader.ReadByte();
-            switch (tag)
-            {
-                case Constants.BinaryChunk:
-                    length = _reader.ReadInt(2);
-                    return false;
-                case Constants.BinaryFinalChunk:
-                    length = _reader.ReadInt(2);
-                    return true;
-                case 0x20:
-                case 0x21:
-                case 0x22:
-                case 0x23:
-                case 0x24:
-                case 0x25:
-                case 0x26:
-                case 0x27:
-                case 0x28:
-                case 0x29:
-                case 0x2a:
-                case 0x2b:
-                case 0x2c:
-                case 0x2d:
-                case 0x2e:
-                case 0x2f:
-                    length = tag - 0x20;
-                    return true;
-                case 0x34:
-                case 0x35:
-                case 0x36:
-                case 0x37:
-                    length = (tag - 0x34) << 8 | _reader.ReadByte();
-                    return true;
-                default:
-                    throw RaiseError("bytes", tag);
-            }
-        }
-
-        private bool TryReadBytes(int tag, out byte[] result)
-        {
-            int length;
-            switch (tag)
-            {
-                case Constants.BinaryChunk:
-                    length = _reader.ReadInt(2);
-                    var buffer = new byte[length];
-                    using (var dataStream = new MemoryStream())
-                    {
-                        var isLastChunk = false;
-                        while (!isLastChunk)
-                        {
-                            _reader.ReadBuffer(buffer, length);
-                            dataStream.Write(buffer, 0, length);
-                            isLastChunk = ReadChunkLength(out length);
-                            if (buffer.Length < length)
-                            {
-                                buffer = new byte[length];
-                            }
-                        }
-                        result = dataStream.ToArray();
-                    }
-
-                    return true;
-                case Constants.BinaryFinalChunk:
-                    length = _reader.ReadInt(2);
-                    break;
-                case 0x20:
-                case 0x21:
-                case 0x22:
-                case 0x23:
-                case 0x24:
-                case 0x25:
-                case 0x26:
-                case 0x27:
-                case 0x28:
-                case 0x29:
-                case 0x2a:
-                case 0x2b:
-                case 0x2c:
-                case 0x2d:
-                case 0x2e:
-                case 0x2f:
-                    length = tag - 0x20;
-                    break;
-                case 0x34:
-                case 0x35:
-                case 0x36:
-                case 0x37:
-                    length = (tag - 0x34) << 8 | _reader.ReadByte();
-                    break;
-                default:
-                    result = null;
-                    return false;
-            }
-            result = new byte[length];
-            _reader.ReadBuffer(result);
-            return true;
-        }
         public byte[] ReadBytes()
         {
             var tag = _reader.ReadByte();
@@ -654,8 +791,6 @@ namespace Hessian.Lite
             }
             throw RaiseError("bytes", tag);
         }
-
-
 
         public string ReadString()
         {
@@ -714,94 +849,6 @@ namespace Hessian.Lite
             throw new IndexOutOfRangeException($"type ref #{index} is greater than the number of valid types ({types.Count})");
         }
 
-        private bool TryReadList(int tag, out IList result)
-        {
-            switch (tag)
-            {
-                case Constants.VariableList:
-                    var type = ReadType();
-                    break;
-                case Constants.VariableUnTypeList:
-                    break;
-            }
-            //    case BC_LIST_VARIABLE:
-            //        {
-            //            // variable length list
-            //            String type = readType();
-
-            //            return findSerializerFactory().readList(this, -1, type);
-            //        }
-
-            //    case BC_LIST_VARIABLE_UNTYPED:
-            //        {
-            //            return findSerializerFactory().readList(this, -1, null);
-            //        }
-
-            //    case BC_LIST_FIXED:
-            //        {
-            //            // fixed length lists
-            //            String type = readType();
-            //            int length = readInt();
-
-            //            Deserializer reader;
-            //            reader = findSerializerFactory().getListDeserializer(type, null);
-
-            //            return reader.readLengthList(this, length);
-            //        }
-
-            //    case BC_LIST_FIXED_UNTYPED:
-            //        {
-            //            // fixed length lists
-            //            int length = readInt();
-
-            //            Deserializer reader;
-            //            reader = findSerializerFactory().getListDeserializer(null, null);
-
-            //            return reader.readLengthList(this, length);
-            //        }
-
-            //    // compact fixed list
-            //    case 0x70:
-            //    case 0x71:
-            //    case 0x72:
-            //    case 0x73:
-            //    case 0x74:
-            //    case 0x75:
-            //    case 0x76:
-            //    case 0x77:
-            //        {
-            //            // fixed length lists
-            //            String type = readType();
-            //            int length = tag - 0x70;
-
-            //            Deserializer reader;
-            //            reader = findSerializerFactory().getListDeserializer(type, null);
-
-            //            return reader.readLengthList(this, length);
-            //        }
-
-            //    // compact fixed untyped list
-            //    case 0x78:
-            //    case 0x79:
-            //    case 0x7a:
-            //    case 0x7b:
-            //    case 0x7c:
-            //    case 0x7d:
-            //    case 0x7e:
-            //    case 0x7f:
-            //        {
-            //            // fixed length lists
-            //            int length = tag - 0x78;
-
-            //            Deserializer reader;
-            //            reader = findSerializerFactory().getListDeserializer(null, null);
-
-            //            return reader.readLengthList(this, length);
-            //        }
-            result = null;
-            return false;
-        }
-
         public int ReadListStart()
         {
             return _reader.ReadByte();
@@ -809,10 +856,10 @@ namespace Hessian.Lite
 
         public bool HasEnd()
         {
-            int code = _reader.ReadByte();
+            var code = _reader.ReadByte();
             if (code < 0)
                 return true;
-            _reader.Seek(-1, SeekOrigin.Current);
+            _reader.Position--;
             return code == Constants.End;
         }
 
@@ -876,80 +923,119 @@ namespace Hessian.Lite
                 return bytesVal;
             }
 
+            if (TryReadList(tag, out var result))
+            {
+                return result;
+            }
 
+            if (TryReadMap(tag, out result))
+            {
+                return result;
+            }
 
-            //    case 'H':
-            //        {
-            //            return findSerializerFactory().readMap(this, null);
-            //        }
+            if (TryReadObject(tag, out result))
+            {
+                return result;
+            }
 
-            //    case 'M':
-            //        {
-            //            String type = readType();
-
-            //            return findSerializerFactory().readMap(this, type);
-            //        }
-
-            //    case 'C':
-            //        {
-            //            readObjectDefinition(null);
-
-            //            return readObject();
-            //        }
-
-            //    case 0x60:
-            //    case 0x61:
-            //    case 0x62:
-            //    case 0x63:
-            //    case 0x64:
-            //    case 0x65:
-            //    case 0x66:
-            //    case 0x67:
-            //    case 0x68:
-            //    case 0x69:
-            //    case 0x6a:
-            //    case 0x6b:
-            //    case 0x6c:
-            //    case 0x6d:
-            //    case 0x6e:
-            //    case 0x6f:
-            //        {
-            //            int ref = tag - 0x60;
-
-            //            if (_classDefs == null)
-            //                throw error("No classes defined at reference '{0}'" + tag);
-
-            //            ObjectDefinition def = (ObjectDefinition)_classDefs.get(ref);
-
-            //            return readObjectInstance(null, def);
-            //        }
-
-            //    case 'O':
-            //        {
-            //            int ref = readInt();
-
-            //            ObjectDefinition def = (ObjectDefinition)_classDefs.get(ref);
-
-            //            return readObjectInstance(null, def);
-            //        }
-
-            //    case BC_REF:
-            //        {
-            //            int ref = readInt();
-
-            //            return _refs.get(ref);
-            //        }
-
-            //    default:
-            //        if (tag < 0)
-            //            throw new EOFException("readObject: unexpected end of file");
-            //        else
             throw RaiseError("object", tag);
         }
 
         public T ReadObject<T>()
         {
-            throw new NotImplementedException();
+            if (typeof(T) == typeof(object))
+            {
+                return (T)ReadObject();
+            }
+
+            var tag = _reader.ReadByte();
+            if (tag == Constants.Null)
+            {
+                return default(T);
+            }
+
+            var targetType = typeof(T);
+
+            IHessianDeserializer deserializer;
+            switch (tag)
+            {
+                case Constants.Null:
+                    return default(T);
+                case Constants.UnTypeMap:
+                    deserializer = SerializeFactory.GetDeserializer(targetType);
+                    return (T)deserializer.ReadMap(this);
+                case Constants.Map:
+                    var type = ReadType();
+                    deserializer = string.IsNullOrEmpty(type) ? SerializeFactory.GetDeserializer(targetType) : SerializeFactory.GetDeserializer(type, targetType);
+                    return (T)deserializer.ReadMap(this);
+                case Constants.ClassDef:
+                    ReadObjectDefinition();
+                    return ReadObject<T>();
+                case 0x60:
+                case 0x61:
+                case 0x62:
+                case 0x63:
+                case 0x64:
+                case 0x65:
+                case 0x66:
+                case 0x67:
+                case 0x68:
+                case 0x69:
+                case 0x6a:
+                case 0x6b:
+                case 0x6c:
+                case 0x6d:
+                case 0x6e:
+                case 0x6f:
+                    var refIndex = tag - 0x60;
+                    return (T)ReadObjectInstance(targetType, defs[refIndex]);
+                case Constants.Object:
+                    refIndex = ReadInt();
+                    return (T)ReadObjectInstance(targetType, defs[refIndex]);
+                case Constants.VariableList:
+                    type = ReadType();
+                    deserializer = SerializeFactory.GetDeserializer(type, targetType);
+                    return (T)deserializer.ReadList(this, -1);
+                case Constants.FixedList:
+                    type = ReadType();
+                    deserializer = SerializeFactory.GetDeserializer(type, targetType);
+                    return (T)deserializer.ReadList(this, ReadInt());
+                case 0x70:
+                case 0x71:
+                case 0x72:
+                case 0x73:
+                case 0x74:
+                case 0x75:
+                case 0x76:
+                case 0x77:
+                    type = ReadType();
+                    deserializer = SerializeFactory.GetDeserializer(type, targetType);
+                    return (T)deserializer.ReadList(this, tag - 0x70);
+                case Constants.VariableUnTypeList:
+                    deserializer = SerializeFactory.GetDeserializer(targetType);
+                    return (T)deserializer.ReadList(this, -1);
+                case Constants.FixedUnTypeList:
+                    deserializer = SerializeFactory.GetDeserializer(targetType);
+                    return (T)deserializer.ReadList(this, ReadInt());
+                case 0x78:
+                case 0x79:
+                case 0x7a:
+                case 0x7b:
+                case 0x7c:
+                case 0x7d:
+                case 0x7e:
+                case 0x7f:
+                    deserializer = SerializeFactory.GetDeserializer(targetType);
+                    return (T)deserializer.ReadList(this, tag - 0x78);
+                case Constants.Ref:
+                    refIndex = ReadInt();
+                    return (T)refs[refIndex];
+                default:
+                    _reader.Position--;
+                    deserializer = SerializeFactory.GetDeserializer(targetType);
+                    return (T)deserializer.ReadObject(this);
+            }
+
         }
     }
 }

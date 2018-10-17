@@ -4,7 +4,7 @@ namespace Hessian.Lite.Deserialize
 {
     public abstract class AbstractDeserializer : IHessianDeserializer
     {
-        public abstract Type Type { get; }
+        public Type Type { get; protected set; }
 
         public virtual object ReadList(Hessian2Reader reader, int length)
         {

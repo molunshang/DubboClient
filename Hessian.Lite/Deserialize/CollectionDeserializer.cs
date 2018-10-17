@@ -8,9 +8,11 @@ namespace Hessian.Lite.Deserialize
 {
     public class CollectionDeserializer : AbstractDeserializer
     {
+        private static readonly Type SelfType = typeof(CollectionDeserializer);
 
+        private static readonly MethodInfo BaseMethod =
+            SelfType.GetMethod("ReadGenericList", BindingFlags.NonPublic | BindingFlags.Static);
         private readonly Func<Hessian2Reader, int, object> _listReader;
-        public override Type Type { get; }
 
         public CollectionDeserializer(Type type)
         {
@@ -18,8 +20,7 @@ namespace Hessian.Lite.Deserialize
             if (type.IsGenericType)
             {
                 var argType = type.GenericTypeArguments[0];
-                var method = GetType().GetMethod("ReadGenericList", BindingFlags.NonPublic | BindingFlags.Static);
-                method = method.MakeGenericMethod(type.IsInterface ? typeof(List<>).MakeGenericType(argType) : type, type.GetGenericArguments()[0]);
+                var method = BaseMethod.MakeGenericMethod(type.IsInterface ? typeof(List<>).MakeGenericType(argType) : type, type.GenericTypeArguments[0]);
                 var paramExpression = new[]
                 {
                     Expression.Parameter(typeof(Hessian2Reader)),
@@ -37,7 +38,7 @@ namespace Hessian.Lite.Deserialize
         private static ICollection<TItem> ReadGenericList<T, TItem>(Hessian2Reader reader, int length) where T : ICollection<TItem>, new()
         {
             ICollection<TItem> collection = new T();
-            if (length > 0)
+            if (length >= 0)
             {
                 for (int i = 0; i < length; i++)
                 {
@@ -59,7 +60,7 @@ namespace Hessian.Lite.Deserialize
         private ICollection ReadObjectList(Hessian2Reader reader, int length)
         {
             var collection = new ArrayList();
-            if (length > 0)
+            if (length >= 0)
             {
                 for (int i = 0; i < length; i++)
                 {

@@ -3,6 +3,7 @@ using Hessian.Lite.Serialize;
 using System;
 using System.Collections;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 
 namespace Hessian.Lite
@@ -14,7 +15,11 @@ namespace Hessian.Lite
         private static readonly ConcurrentDictionary<Type, IHessianDeserializer> DeserializerMap = new ConcurrentDictionary<Type, IHessianDeserializer>();
         private static readonly ConcurrentDictionary<string, IHessianDeserializer> TypeNameDeserializers = new ConcurrentDictionary<string, IHessianDeserializer>();
 
-        private static IHessianSerializer SingleObject<T>() where T : IHessianSerializer, new()
+        public static Type DefaultCollectionType = typeof(ArrayList);
+
+        public static Type DefaultDictionaryType = typeof(Hashtable);
+
+        private static IHessianSerializer SingleSerializer<T>() where T : IHessianSerializer, new()
         {
             return SerializerMap.GetOrAdd(typeof(T), new T());
         }
@@ -51,10 +56,10 @@ namespace Hessian.Lite
             RegisterBasic(typeof(object[]), "[object", BasicType.ObjectArray);
 
             var type = typeof(ulong);
-            SerializerMap.TryAdd(type, SingleObject<StringSerializer>());
+            SerializerMap.TryAdd(type, SingleSerializer<StringSerializer>());
             DeserializerMap.TryAdd(type, new StringDeserializer(type, str => ulong.Parse(str)));
             type = typeof(decimal);
-            SerializerMap.TryAdd(type, SingleObject<StringSerializer>());
+            SerializerMap.TryAdd(type, SingleSerializer<StringSerializer>());
             DeserializerMap.TryAdd(type, new StringDeserializer(type, str => decimal.Parse(str)));
         }
 
@@ -77,7 +82,7 @@ namespace Hessian.Lite
         }
         public static bool RegisterDefaultTypeMap(Type type, string mapType)
         {
-            return RegisterDefaultTypeMap(type.FullName, mapType);
+            return RegisterDefaultTypeMap(type.AssemblyQualifiedName, mapType);
         }
         public static bool TryGetMapType(string type, out string mapType)
         {
@@ -92,27 +97,27 @@ namespace Hessian.Lite
             }
             if (type.IsArray)
             {
-                serializer = SingleObject<ArraySerializer>();
+                serializer = SingleSerializer<ArraySerializer>();
             }
             else if (type.IsSubType(typeof(Stream)))
             {
-                serializer = SingleObject<StreamSerializer>();
+                serializer = SingleSerializer<StreamSerializer>();
             }
-            else if (type.IsSubType(typeof(IDictionary)))
+            else if (type.IsSubType(typeof(IDictionary)) || type.IsGenericType && type.GetGenericTypeDefinition().IsSubType(typeof(IDictionary<,>)))
             {
-                serializer = SingleObject<MapSerializer>();
+                serializer = SingleSerializer<MapSerializer>();
             }
-            else if (type.IsSubType(typeof(ICollection)))
+            else if (type.IsSubType(typeof(ICollection)) || type.IsGenericType && type.GetGenericTypeDefinition().IsSubType(typeof(ICollection<>)))
             {
-                serializer = SingleObject<CollectionSerializer>();
+                serializer = SingleSerializer<CollectionSerializer>();
             }
             else if (type.IsSubType(typeof(IEnumerable)))
             {
-                serializer = SingleObject<EnumerableSerializer>();
+                serializer = SingleSerializer<EnumerableSerializer>();
             }
             else if (type.IsSubType(typeof(IEnumerator)))
             {
-                serializer = SingleObject<EnumeratorSerializer>();
+                serializer = SingleSerializer<EnumeratorSerializer>();
             }
             else
             {
@@ -120,6 +125,94 @@ namespace Hessian.Lite
             }
             SerializerMap.TryAdd(type, serializer);
             return serializer;
+        }
+
+        public static IHessianDeserializer GetDeserializer(Type type)
+        {
+            if (DeserializerMap.TryGetValue(type, out var deserializer))
+            {
+                return deserializer;
+            }
+
+            if (type.IsArray)
+            {
+                deserializer = CreateArrayDeserializer(type);
+            }
+            else if (type.IsEnum)
+            {
+                deserializer = new EnumDeserializer(type);
+            }
+            else if (type.IsSubType(typeof(IDictionary)) ||
+                     type.IsGenericType && type.GetGenericTypeDefinition().IsSubType(typeof(IDictionary<,>)))
+            {
+                deserializer = new MapDeserializer(type);
+            }
+            else if (type.IsSubType(typeof(ICollection)) ||
+                     type.IsGenericType && type.GetGenericTypeDefinition().IsSubType(typeof(ICollection<>)))
+            {
+                deserializer = new CollectionDeserializer(type);
+            }
+            else
+            {
+                //todo 接口/抽象类
+                //todo stream
+                //todo 默认解析类
+                //todo 可迭代类型
+            }
+            DeserializerMap.TryAdd(type, deserializer);
+            return deserializer;
+        }
+
+        private static AbstractDeserializer CreateArrayDeserializer(Type type)
+        {
+            var deserializeType = typeof(ArrayDeserializer<>).MakeGenericType(type);
+            return (AbstractDeserializer)Activator.CreateInstance(deserializeType);
+        }
+
+        public static IHessianDeserializer GetDeserializer(string typeName)
+        {
+            if (string.IsNullOrEmpty(typeName))
+            {
+                return DeserializerMap.GetOrAdd(DefaultDictionaryType, type => new MapDeserializer(DefaultDictionaryType));
+            }
+
+            if (TypeNameDeserializers.TryGetValue(typeName, out var deserializer))
+            {
+                return deserializer;
+            }
+
+            if (typeName.StartsWith("["))
+            {
+                var subDeserializer = GetDeserializer(typeName.Substring(1));
+                deserializer = CreateArrayDeserializer(subDeserializer.Type);
+            }
+            else
+            {
+                var targetType = Type.GetType(typeName);
+                if (targetType != null)
+                {
+                    deserializer = GetDeserializer(targetType);
+                }
+
+                if (deserializer == null)
+                {
+                    deserializer = DeserializerMap.GetOrAdd(DefaultDictionaryType, type => new MapDeserializer(DefaultDictionaryType));
+                }
+            }
+
+            TypeNameDeserializers.TryAdd(typeName, deserializer);
+            return deserializer;
+        }
+
+        public static IHessianDeserializer GetDeserializer(string type, Type targetType)
+        {
+            var deserializer = GetDeserializer(type);
+            if (targetType == null || targetType == deserializer.Type || deserializer.Type.IsSubType(targetType))
+            {
+                return deserializer;
+            }
+
+            return GetDeserializer(targetType);
         }
     }
 }

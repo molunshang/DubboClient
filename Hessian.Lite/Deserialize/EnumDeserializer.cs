@@ -5,8 +5,6 @@ namespace Hessian.Lite.Deserialize
 {
     public class EnumDeserializer : AbstractDeserializer
     {
-        public override Type Type { get; }
-
         public EnumDeserializer(Type type)
         {
             if (!type.IsEnum)

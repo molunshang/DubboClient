@@ -21,7 +21,7 @@ namespace Hessian.Lite.Serialize
                 if (type.IsGenericType)
                 {
                     var targetType = type.GetGenericTypeDefinition();
-                    _typeName = SerializeFactory.TryGetMapType(targetType.FullName, out var mapType) ? mapType : type.FullName;
+                    _typeName = SerializeFactory.TryGetMapType(targetType.AssemblyQualifiedName, out var mapType) ? mapType : type.AssemblyQualifiedName;
                 }
                 else
                 {

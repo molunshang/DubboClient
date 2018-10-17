@@ -6,7 +6,6 @@ namespace Hessian.Lite.Deserialize
     {
 
         private readonly Func<string, object> convertFunc;
-        public override Type Type { get; }
         public StringDeserializer(Type type, Func<string, object> convertFunc)
         {
             Type = type;

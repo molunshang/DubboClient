@@ -12,7 +12,7 @@ namespace Hessian.Lite.Serialize
         public ObjectSerializer(Type type)
         {
             var nameAttr = type.GetCustomAttribute<NameAttribute>();
-            _typeName = nameAttr == null ? type.FullName : nameAttr.TargetName;
+            _typeName = nameAttr == null ? type.AssemblyQualifiedName : nameAttr.TargetName;
             while (type != null && type != typeof(object))
             {
                 var properties = type.GetProperties(BindingFlags.DeclaredOnly | BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.GetField);

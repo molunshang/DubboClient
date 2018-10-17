@@ -17,14 +17,14 @@ namespace Hessian.Lite.Serialize
                 }
                 else
                 {
-                    writer.WriteMapBegin(SerializeFactory.TryGetMapType(genericType.FullName, out var targetType)
+                    writer.WriteMapBegin(SerializeFactory.TryGetMapType(genericType.AssemblyQualifiedName, out var targetType)
                         ? targetType
-                        : type.FullName);
+                        : type.AssemblyQualifiedName);
                 }
             }
             else
             {
-                writer.WriteMapBegin(obj is Hashtable ? null : type.FullName);
+                writer.WriteMapBegin(obj is Hashtable ? null : type.AssemblyQualifiedName);
             }
 
             var dic = (IDictionary)obj;

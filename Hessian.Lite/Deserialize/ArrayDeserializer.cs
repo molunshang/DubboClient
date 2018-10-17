@@ -5,21 +5,9 @@ namespace Hessian.Lite.Deserialize
 {
     public class ArrayDeserializer<T> : AbstractDeserializer
     {
-        public override Type Type { get; }
         public ArrayDeserializer()
         {
             Type = typeof(T).MakeArrayType();
-        }
-
-        public static AbstractDeserializer CreateDeserializer(Type type)
-        {
-            var deserializeType = typeof(ArrayDeserializer<>).MakeGenericType(type);
-            return (AbstractDeserializer)Activator.CreateInstance(deserializeType);
-        }
-
-        public override object ReadObject(Hessian2Reader reader)
-        {
-            throw new NotImplementedException();
         }
 
         private T[] ReadArray(Hessian2Reader reader, int length)
@@ -49,7 +37,7 @@ namespace Hessian.Lite.Deserialize
 
         public override object ReadList(Hessian2Reader reader, int length)
         {
-            return length > 0 ? ReadArray(reader, length) : ReadList(reader);
+            return length >= 0 ? ReadArray(reader, length) : ReadList(reader);
         }
     }
 }

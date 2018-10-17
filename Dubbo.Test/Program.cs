@@ -92,13 +92,27 @@ namespace Dubbo.Test
             //    }
             //}).Wait();
             //var data = Test();
-            SerializeFactory.RegisterDefaultTypeMap(typeof(SortedDictionary<string, int>), "java.util.TreeMap");
+            //SerializeFactory.RegisterDefaultTypeMap(typeof(SortedDictionary<string, int>), "java.util.TreeMap");
 
             var dic = new SortedDictionary<string, int> { { "1", 1 }, { "2", 2 }, { "3", 3 } };
+            var strs = new string[15];
             var buffer = new MemoryStream();
             var writer = new Hessian2Writer(buffer);
-            writer.WriteObject(new byte[] { 1, 23, 4 });
-            File.WriteAllBytes("hessian.test", buffer.ToArray());
+            writer.WriteObject(strs);
+            //writer.WriteObject(new byte[] { 1, 23, 4 });
+            //File.WriteAllBytes("hessian.test", buffer.ToArray());
+            //var stream = File.OpenRead("E:\\code\\dubbo-client\\Dubbo.Test\\bin\\Debug\\netcoreapp2.0\\out.test");
+            //var reader = new Hessian2Reader(stream);
+            //Console.WriteLine(reader.ReadString());
+            //var type = typeof(List<int>);
+            //var newExp = Expression.New(type.GetConstructor(new Type[0]));
+            //var m = Expression.Lambda<Func<List<int>>>(newExp).Compile();
+            //var obj = m();
+            //Console.WriteLine(obj);
+            buffer.Seek(0, SeekOrigin.Begin);
+            var reader = new Hessian2Reader(buffer);
+            var obj = reader.ReadObject();
+            Console.WriteLine(obj);
         }
 
 

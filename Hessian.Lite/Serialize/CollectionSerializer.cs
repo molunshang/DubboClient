@@ -19,14 +19,14 @@ namespace Hessian.Lite.Serialize
                 else
                 {
                     writer.WriteListStart(collection.Count,
-                        SerializeFactory.TryGetMapType(genericType.FullName, out var mapType)
+                        SerializeFactory.TryGetMapType(genericType.AssemblyQualifiedName, out var mapType)
                             ? mapType
-                            : listType.FullName);
+                            : listType.AssemblyQualifiedName);
                 }
             }
             else
             {
-                writer.WriteListStart(collection.Count, collection is ArrayList ? null : listType.FullName);
+                writer.WriteListStart(collection.Count, collection is ArrayList ? null : listType.AssemblyQualifiedName);
             }
             return false;
         }
