@@ -106,7 +106,7 @@ namespace Hessian.Lite
             return BitConverter.Int64BitsToDouble(ReadLong(stream));
         }
 
-        public static void ReadBuffer(this Stream steam, byte[] buffer, int count = -1)
+        public static void ReadBytes(this Stream steam, byte[] buffer, int count = -1)
         {
             if (count <= 0)
             {

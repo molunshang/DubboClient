@@ -444,7 +444,7 @@ namespace Hessian.Lite
                         var isLastChunk = false;
                         while (!isLastChunk)
                         {
-                            _reader.ReadBuffer(buffer, length);
+                            _reader.ReadBytes(buffer, length);
                             dataStream.Write(buffer, 0, length);
                             isLastChunk = ReadChunkLength(out length);
                             if (buffer.Length < length)
@@ -488,7 +488,7 @@ namespace Hessian.Lite
                     return false;
             }
             result = new byte[length];
-            _reader.ReadBuffer(result);
+            _reader.ReadBytes(result);
             return true;
         }
 
@@ -606,7 +606,6 @@ namespace Hessian.Lite
                     return false;
             }
         }
-
 
         private object ReadObjectInstance(Type type, ObjectDefinition def)
         {
@@ -941,36 +940,28 @@ namespace Hessian.Lite
             throw RaiseError("object", tag);
         }
 
-        public T ReadObject<T>()
+        public object ReadObject(Type type)
         {
-            if (typeof(T) == typeof(object))
+            if (type == typeof(object))
             {
-                return (T)ReadObject();
+                return ReadObject();
             }
-
             var tag = _reader.ReadByte();
-            if (tag == Constants.Null)
-            {
-                return default(T);
-            }
-
-            var targetType = typeof(T);
-
             IHessianDeserializer deserializer;
             switch (tag)
             {
                 case Constants.Null:
-                    return default(T);
+                    return type.IsPrimitive ? type.Default() : null;
                 case Constants.UnTypeMap:
-                    deserializer = SerializeFactory.GetDeserializer(targetType);
-                    return (T)deserializer.ReadMap(this);
+                    deserializer = SerializeFactory.GetDeserializer(type);
+                    return deserializer.ReadMap(this);
                 case Constants.Map:
-                    var type = ReadType();
-                    deserializer = string.IsNullOrEmpty(type) ? SerializeFactory.GetDeserializer(targetType) : SerializeFactory.GetDeserializer(type, targetType);
-                    return (T)deserializer.ReadMap(this);
+                    var typeName = ReadType();
+                    deserializer = string.IsNullOrEmpty(typeName) ? SerializeFactory.GetDeserializer(type) : SerializeFactory.GetDeserializer(typeName, type);
+                    return deserializer.ReadMap(this);
                 case Constants.ClassDef:
                     ReadObjectDefinition();
-                    return ReadObject<T>();
+                    return ReadObject(type);
                 case 0x60:
                 case 0x61:
                 case 0x62:
@@ -988,18 +979,18 @@ namespace Hessian.Lite
                 case 0x6e:
                 case 0x6f:
                     var refIndex = tag - 0x60;
-                    return (T)ReadObjectInstance(targetType, defs[refIndex]);
+                    return ReadObjectInstance(type, defs[refIndex]);
                 case Constants.Object:
                     refIndex = ReadInt();
-                    return (T)ReadObjectInstance(targetType, defs[refIndex]);
+                    return ReadObjectInstance(type, defs[refIndex]);
                 case Constants.VariableList:
-                    type = ReadType();
-                    deserializer = SerializeFactory.GetDeserializer(type, targetType);
-                    return (T)deserializer.ReadList(this, -1);
+                    typeName = ReadType();
+                    deserializer = SerializeFactory.GetDeserializer(typeName, type);
+                    return deserializer.ReadList(this, -1);
                 case Constants.FixedList:
-                    type = ReadType();
-                    deserializer = SerializeFactory.GetDeserializer(type, targetType);
-                    return (T)deserializer.ReadList(this, ReadInt());
+                    typeName = ReadType();
+                    deserializer = SerializeFactory.GetDeserializer(typeName, type);
+                    return deserializer.ReadList(this, ReadInt());
                 case 0x70:
                 case 0x71:
                 case 0x72:
@@ -1008,15 +999,15 @@ namespace Hessian.Lite
                 case 0x75:
                 case 0x76:
                 case 0x77:
-                    type = ReadType();
-                    deserializer = SerializeFactory.GetDeserializer(type, targetType);
-                    return (T)deserializer.ReadList(this, tag - 0x70);
+                    typeName = ReadType();
+                    deserializer = SerializeFactory.GetDeserializer(typeName, type);
+                    return deserializer.ReadList(this, tag - 0x70);
                 case Constants.VariableUnTypeList:
-                    deserializer = SerializeFactory.GetDeserializer(targetType);
-                    return (T)deserializer.ReadList(this, -1);
+                    deserializer = SerializeFactory.GetDeserializer(type);
+                    return deserializer.ReadList(this, -1);
                 case Constants.FixedUnTypeList:
-                    deserializer = SerializeFactory.GetDeserializer(targetType);
-                    return (T)deserializer.ReadList(this, ReadInt());
+                    deserializer = SerializeFactory.GetDeserializer(type);
+                    return deserializer.ReadList(this, ReadInt());
                 case 0x78:
                 case 0x79:
                 case 0x7a:
@@ -1025,17 +1016,33 @@ namespace Hessian.Lite
                 case 0x7d:
                 case 0x7e:
                 case 0x7f:
-                    deserializer = SerializeFactory.GetDeserializer(targetType);
-                    return (T)deserializer.ReadList(this, tag - 0x78);
+                    deserializer = SerializeFactory.GetDeserializer(type);
+                    return deserializer.ReadList(this, tag - 0x78);
                 case Constants.Ref:
                     refIndex = ReadInt();
-                    return (T)refs[refIndex];
+                    return refs[refIndex];
                 default:
                     _reader.Position--;
-                    deserializer = SerializeFactory.GetDeserializer(targetType);
-                    return (T)deserializer.ReadObject(this);
+                    deserializer = SerializeFactory.GetDeserializer(type);
+                    return deserializer.ReadObject(this);
+            }
+        }
+
+        public T ReadObject<T>()
+        {
+            var type = typeof(T);
+            if (type == typeof(object))
+            {
+                return (T)ReadObject();
+            }
+            var tag = _reader.ReadByte();
+            if (tag == Constants.Null)
+            {
+                return default(T);
             }
 
+            _reader.Position--;
+            return (T)ReadObject(type);
         }
     }
 }

@@ -7,11 +7,8 @@
   <ItemGroup>
     <Compile Remove="Deserialize\ArraySerializer.cs" />
     <Compile Remove="Deserialize\BasicType.cs" />
-    <Compile Remove="Deserialize\CSharpSerializer.cs" />
-    <Compile Remove="Deserialize\EnumerableSerializer.cs" />
     <Compile Remove="Deserialize\EnumeratorSerializer.cs" />
     <Compile Remove="Deserialize\MapSerializer.cs" />
-    <Compile Remove="Deserialize\ObjectSerializer.cs" />
     <Compile Remove="Deserialize\StreamSerializer.cs" />
     <Compile Remove="Deserialize\StringSerializer.cs" />
   </ItemGroup>

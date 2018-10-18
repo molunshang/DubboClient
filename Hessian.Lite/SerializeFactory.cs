@@ -152,13 +152,28 @@ namespace Hessian.Lite
             {
                 deserializer = new CollectionDeserializer(type);
             }
+            else if (type.IsSubType(typeof(Stream)))
+            {
+                deserializer = DeserializerMap.GetOrAdd(type, tkey => new StreamDeserializer());
+            }
+            else if (type.IsSubType(typeof(IEnumerable)))
+            {
+                deserializer = DeserializerMap.GetOrAdd(type, tkey => new EnumerableDeserializer(type));
+            }
+            else if (type.IsSubType(typeof(IEnumerator)))
+            {
+                deserializer = DeserializerMap.GetOrAdd(type, tkey => new EnumeratorDeserializer(type));
+            }
+            else if (type.IsInterface || type.IsAbstract)
+            {
+
+            }
             else
             {
-                //todo 接口/抽象类
-                //todo stream
-                //todo 默认解析类
-                //todo 可迭代类型
+                deserializer = CreateObjectDeserializer(type);
             }
+            //todo 接口/抽象类
+            //todo 默认解析类
             DeserializerMap.TryAdd(type, deserializer);
             return deserializer;
         }
@@ -166,6 +181,12 @@ namespace Hessian.Lite
         private static AbstractDeserializer CreateArrayDeserializer(Type type)
         {
             var deserializeType = typeof(ArrayDeserializer<>).MakeGenericType(type);
+            return (AbstractDeserializer)Activator.CreateInstance(deserializeType);
+        }
+
+        private static AbstractDeserializer CreateObjectDeserializer(Type type)
+        {
+            var deserializeType = typeof(ObjectDeserializer<>).MakeGenericType(type);
             return (AbstractDeserializer)Activator.CreateInstance(deserializeType);
         }
 
