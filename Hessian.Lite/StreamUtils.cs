@@ -88,14 +88,16 @@ namespace Hessian.Lite
                 case 3:
                 case 4:
                     return ReadInt(stream, bits);
+#pragma warning disable CS0675 // 对进行了带符号扩展的操作数使用了按位或运算符
                 case 5:
-                    return ReadInt(stream, bits) << 8 | stream.ReadByte();
+                    return (long)stream.ReadByte() << 32 | (long)stream.ReadByte() << 24 | (long)stream.ReadByte() << 16 | (long)stream.ReadByte() << 8 | stream.ReadByte();
                 case 6:
-                    return ReadInt(stream, bits) << 16 | stream.ReadByte() << 8 | stream.ReadByte();
+                    return (long)stream.ReadByte() << 40 | (long)stream.ReadByte() << 32 | (long)stream.ReadByte() << 24 | (long)stream.ReadByte() << 16 | (long)stream.ReadByte() << 8 | stream.ReadByte();
                 case 7:
-                    return ReadInt(stream, bits) << 24 | stream.ReadByte() << 16 | stream.ReadByte() << 8 | stream.ReadByte();
+                    return (long)stream.ReadByte() << 48 | (long)stream.ReadByte() << 40 | (long)stream.ReadByte() << 32 | (long)stream.ReadByte() << 24 | (long)stream.ReadByte() << 16 | stream.ReadByte() << 8 | stream.ReadByte();
                 case 8:
-                    return ReadInt(stream, bits) << 32 | stream.ReadByte() << 24 | stream.ReadByte() << 16 | stream.ReadByte() << 8 | stream.ReadByte();
+                    return (long)stream.ReadByte() << 56 | (long)stream.ReadByte() << 48 | (long)stream.ReadByte() << 40 | (long)stream.ReadByte() << 32 | (long)stream.ReadByte() << 24 | (long)stream.ReadByte() << 16 | (long)stream.ReadByte() << 8 | stream.ReadByte();
+#pragma warning restore CS0675 // 对进行了带符号扩展的操作数使用了按位或运算符
                 default:
                     throw new ArgumentOutOfRangeException();
             }

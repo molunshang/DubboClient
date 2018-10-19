@@ -1,9 +1,6 @@
-﻿using System;
-using System.IO;
-using System.Net.Sockets;
-using Dubbo.Hessian;
-using hessiancsharp.io;
+﻿using Hessian.Lite;
 using Hessian.Lite.IO;
+using System.IO;
 
 namespace Dubbo
 {
@@ -30,7 +27,7 @@ namespace Dubbo
             header.WriteLong(request.RequestId, 4);
             using (var dataStream = new PoolMemoryStream())
             {
-                var output = new CHessianOutput(dataStream);
+                var output = new Hessian2Writer(dataStream);
                 output.WriteString("2.0.0");
                 output.WriteObject(request.Attachments["path"]);
                 output.WriteObject(request.Attachments["version"]);

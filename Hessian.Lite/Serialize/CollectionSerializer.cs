@@ -12,17 +12,10 @@ namespace Hessian.Lite.Serialize
             if (listType.IsGenericType)
             {
                 var genericType = listType.GetGenericTypeDefinition();
-                if (genericType == typeof(List<>))
-                {
-                    writer.WriteListStart(collection.Count, null);
-                }
-                else
-                {
-                    writer.WriteListStart(collection.Count,
-                        SerializeFactory.TryGetMapType(genericType.AssemblyQualifiedName, out var mapType)
-                            ? mapType
-                            : listType.AssemblyQualifiedName);
-                }
+                writer.WriteListStart(collection.Count,
+                    genericType == typeof(List<>)
+                        ? null
+                        : SerializeFactory.GetMapType(genericType.AssemblyQualifiedName));
             }
             else
             {

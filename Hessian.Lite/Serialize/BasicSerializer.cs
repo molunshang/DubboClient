@@ -10,10 +10,7 @@ namespace Hessian.Lite.Serialize
         {
             switch (type)
             {
-                case BasicType.String:
-                case BasicType.Object:
                 case BasicType.BoolArray:
-                case BasicType.ByteArray:
                 case BasicType.SByteArray:
                 case BasicType.ShortArray:
                 case BasicType.UShortArray:

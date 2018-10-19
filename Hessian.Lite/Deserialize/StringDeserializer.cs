@@ -33,10 +33,10 @@ namespace Hessian.Lite.Deserialize
             return result;
         }
 
-        public override object ReadObject(Hessian2Reader reader, string[] fieldNames)
+        public override object ReadObject(Hessian2Reader reader, ObjectDefinition definition)
         {
             string value = null;
-            foreach (var name in fieldNames)
+            foreach (var name in definition.Fields)
             {
                 if ("value" == (name))
                 {

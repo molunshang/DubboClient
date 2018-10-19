@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace Hessian.Lite.Deserialize
 {
@@ -13,26 +12,24 @@ namespace Hessian.Lite.Deserialize
         private T[] ReadArray(Hessian2Reader reader, int length)
         {
             var result = new T[length];
+            reader.AddRef(result);
             for (var i = 0; i < result.Length; i++)
             {
                 result[i] = reader.ReadObject<T>();
             }
-
-            reader.AddRef(result);
             return result;
         }
 
         private T[] ReadList(Hessian2Reader reader)
         {
             var list = new List<T>();
+            reader.AddRef(list);
             while (!reader.HasEnd())
             {
                 list.Add(reader.ReadObject<T>());
             }
             reader.ReadToEnd();
-            var result = list.ToArray();
-            reader.AddRef(result);
-            return result;
+            return list.ToArray();
         }
 
         public override object ReadList(Hessian2Reader reader, int length)

@@ -37,53 +37,52 @@ namespace Hessian.Lite.Deserialize
 
         private static ICollection<TItem> ReadGenericList<T, TItem>(Hessian2Reader reader, int length) where T : ICollection<TItem>, new()
         {
-            ICollection<TItem> collection = new T();
+            ICollection<TItem> result = new T();
+            reader.AddRef(result);
             if (length >= 0)
             {
                 for (int i = 0; i < length; i++)
                 {
-                    collection.Add(reader.ReadObject<TItem>());
+                    result.Add(reader.ReadObject<TItem>());
                 }
             }
             else
             {
                 while (!reader.HasEnd())
                 {
-                    collection.Add(reader.ReadObject<TItem>());
+                    result.Add(reader.ReadObject<TItem>());
                 }
                 reader.ReadToEnd();
             }
-
-            return collection;
+            return result;
         }
 
         private ICollection ReadObjectList(Hessian2Reader reader, int length)
         {
-            var collection = new ArrayList();
+            var result = new ArrayList();
+            reader.AddRef(result);
             if (length >= 0)
             {
                 for (int i = 0; i < length; i++)
                 {
-                    collection.Add(reader.ReadObject());
+                    result.Add(reader.ReadObject());
                 }
             }
             else
             {
                 while (!reader.HasEnd())
                 {
-                    collection.Add(reader.ReadObject());
+                    result.Add(reader.ReadObject());
                 }
                 reader.ReadToEnd();
             }
 
-            return collection;
+            return result;
         }
 
         public override object ReadList(Hessian2Reader reader, int length)
         {
-            var result = _listReader(reader, length);
-            reader.AddRef(reader);
-            return result;
+            return _listReader(reader, length);
         }
     }
 }

@@ -11,16 +11,9 @@ namespace Hessian.Lite.Serialize
             if (type.IsGenericType)
             {
                 var genericType = type.GetGenericTypeDefinition();
-                if (genericType == typeof(Dictionary<,>))
-                {
-                    writer.WriteMapBegin(null);
-                }
-                else
-                {
-                    writer.WriteMapBegin(SerializeFactory.TryGetMapType(genericType.AssemblyQualifiedName, out var targetType)
-                        ? targetType
-                        : type.AssemblyQualifiedName);
-                }
+                writer.WriteMapBegin(genericType == typeof(Dictionary<,>)
+                    ? null
+                    : SerializeFactory.GetMapType(genericType.AssemblyQualifiedName));
             }
             else
             {

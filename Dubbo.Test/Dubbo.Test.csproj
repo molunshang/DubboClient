@@ -1,10 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <PackageReference Include="CZD.HessianCSharp" Version="1.0.0" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\Dubbo\Dubbo.csproj" />
     <ProjectReference Include="..\Hessian.Lite\Hessian.Lite.csproj" />
   </ItemGroup>

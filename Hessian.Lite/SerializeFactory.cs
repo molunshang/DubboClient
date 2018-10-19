@@ -16,13 +16,7 @@ namespace Hessian.Lite
         private static readonly ConcurrentDictionary<string, IHessianDeserializer> TypeNameDeserializers = new ConcurrentDictionary<string, IHessianDeserializer>();
 
         public static Type DefaultCollectionType = typeof(ArrayList);
-
         public static Type DefaultDictionaryType = typeof(Hashtable);
-
-        private static IHessianSerializer SingleSerializer<T>() where T : IHessianSerializer, new()
-        {
-            return SerializerMap.GetOrAdd(typeof(T), new T());
-        }
 
         static SerializeFactory()
         {
@@ -63,6 +57,23 @@ namespace Hessian.Lite
             DeserializerMap.TryAdd(type, new StringDeserializer(type, str => decimal.Parse(str)));
         }
 
+        private static IHessianSerializer SingleSerializer<T>() where T : IHessianSerializer, new()
+        {
+            return SerializerMap.GetOrAdd(typeof(T), new T());
+        }
+
+        private static AbstractDeserializer CreateArrayDeserializer(Type type)
+        {
+            var deserializeType = typeof(ArrayDeserializer<>).MakeGenericType(type);
+            return (AbstractDeserializer)Activator.CreateInstance(deserializeType);
+        }
+
+        private static AbstractDeserializer CreateObjectDeserializer(Type type)
+        {
+            var deserializeType = typeof(ObjectDeserializer<>).MakeGenericType(type);
+            return (AbstractDeserializer)Activator.CreateInstance(deserializeType);
+        }
+
         static void RegisterBasic(Type type, string typeName, BasicType basicType)
         {
             SerializerMap.TryAdd(type, new BasicSerializer(basicType));
@@ -70,7 +81,7 @@ namespace Hessian.Lite
             DeserializerMap.TryAdd(type, deserializer);
             TypeNameDeserializers.TryAdd(typeName, deserializer);
         }
-        public static bool RegisterDefaultTypeMap(string type, string mapType)
+        public static bool RegisterTypeMap(string type, string mapType)
         {
             if (!TypeMap.TryAdd(type, mapType))
             {
@@ -80,13 +91,10 @@ namespace Hessian.Lite
             TypeMap.AddOrUpdate(mapType, type, (key, old) => type);
             return true;
         }
-        public static bool RegisterDefaultTypeMap(Type type, string mapType)
+
+        public static string GetMapType(string type)
         {
-            return RegisterDefaultTypeMap(type.AssemblyQualifiedName, mapType);
-        }
-        public static bool TryGetMapType(string type, out string mapType)
-        {
-            return TypeMap.TryGetValue(type, out mapType);
+            return TypeMap.TryGetValue(type, out var mapType) ? mapType : type;
         }
 
         public static IHessianSerializer GetSerializer(Type type)
@@ -178,23 +186,11 @@ namespace Hessian.Lite
             return deserializer;
         }
 
-        private static AbstractDeserializer CreateArrayDeserializer(Type type)
-        {
-            var deserializeType = typeof(ArrayDeserializer<>).MakeGenericType(type);
-            return (AbstractDeserializer)Activator.CreateInstance(deserializeType);
-        }
-
-        private static AbstractDeserializer CreateObjectDeserializer(Type type)
-        {
-            var deserializeType = typeof(ObjectDeserializer<>).MakeGenericType(type);
-            return (AbstractDeserializer)Activator.CreateInstance(deserializeType);
-        }
-
         public static IHessianDeserializer GetDeserializer(string typeName)
         {
             if (string.IsNullOrEmpty(typeName))
             {
-                return DeserializerMap.GetOrAdd(DefaultDictionaryType, type => new MapDeserializer(DefaultDictionaryType));
+                return null;
             }
 
             if (TypeNameDeserializers.TryGetValue(typeName, out var deserializer))
@@ -205,7 +201,7 @@ namespace Hessian.Lite
             if (typeName.StartsWith("["))
             {
                 var subDeserializer = GetDeserializer(typeName.Substring(1));
-                deserializer = CreateArrayDeserializer(subDeserializer.Type);
+                deserializer = CreateArrayDeserializer(subDeserializer == null ? typeof(object) : subDeserializer.Type);
             }
             else
             {
@@ -214,26 +210,47 @@ namespace Hessian.Lite
                 {
                     deserializer = GetDeserializer(targetType);
                 }
-
-                if (deserializer == null)
-                {
-                    deserializer = DeserializerMap.GetOrAdd(DefaultDictionaryType, type => new MapDeserializer(DefaultDictionaryType));
-                }
             }
 
-            TypeNameDeserializers.TryAdd(typeName, deserializer);
+            if (deserializer != null)
+            {
+                TypeNameDeserializers.TryAdd(typeName, deserializer);
+            }
             return deserializer;
         }
 
         public static IHessianDeserializer GetDeserializer(string type, Type targetType)
         {
             var deserializer = GetDeserializer(type);
-            if (targetType == null || targetType == deserializer.Type || deserializer.Type.IsSubType(targetType))
+            if (deserializer != null)
+            {
+                if (targetType == null || targetType == deserializer.Type || deserializer.Type.IsSubType(targetType))
+                {
+                    return deserializer;
+                }
+            }
+            else if (targetType == null)
+            {
+                return DeserializerMap.GetOrAdd(DefaultDictionaryType,
+                    key => new MapDeserializer(DefaultDictionaryType));
+            }
+            return GetDeserializer(targetType);
+        }
+
+        public static IHessianDeserializer GetListDeserializer(string typeName)
+        {
+            var deserializer = GetDeserializer(typeName);
+            return deserializer ?? DeserializerMap.GetOrAdd(DefaultCollectionType, key => new CollectionDeserializer(key));
+        }
+
+        public static IHessianDeserializer GetListDeserializer(string typeName, Type type)
+        {
+            var deserializer = GetListDeserializer(typeName);
+            if (type == null || type == deserializer.Type || deserializer.Type.IsSubType(type))
             {
                 return deserializer;
             }
-
-            return GetDeserializer(targetType);
+            return GetDeserializer(type);
         }
     }
 }

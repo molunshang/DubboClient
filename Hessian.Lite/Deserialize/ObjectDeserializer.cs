@@ -65,11 +65,12 @@ namespace Hessian.Lite.Deserialize
             return result;
         }
 
-        public override object ReadObject(Hessian2Reader reader, string[] fieldNames)
+        public override object ReadObject(Hessian2Reader reader, ObjectDefinition definition)
         {
             var result = _creator();
             reader.AddRef(result);
-            foreach (var propertyName in fieldNames)
+
+            foreach (var propertyName in definition.Fields)
             {
                 if (_propertyInfos.TryGetValue(propertyName, out var setter))
                 {

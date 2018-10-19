@@ -26,6 +26,7 @@ namespace Hessian.Lite.Deserialize
         private static IEnumerable<T> Read<T>(Hessian2Reader reader, int length)
         {
             var list = new List<T>();
+            reader.AddRef(list);
             if (length >= 0)
             {
                 for (int i = 0; i < length; i++)
@@ -41,7 +42,6 @@ namespace Hessian.Lite.Deserialize
                 }
                 reader.ReadToEnd();
             }
-            reader.AddRef(list);
             return list;
         }
 

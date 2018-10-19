@@ -12,22 +12,12 @@ namespace Hessian.Lite.Serialize
         public CSharpSerializer(Type type)
         {
             var nameAttr = type.GetCustomAttribute<NameAttribute>();
-            if (nameAttr != null)
-            {
-                _typeName = nameAttr.TargetName;
-            }
-            else
-            {
-                if (type.IsGenericType)
-                {
-                    var targetType = type.GetGenericTypeDefinition();
-                    _typeName = SerializeFactory.TryGetMapType(targetType.AssemblyQualifiedName, out var mapType) ? mapType : type.AssemblyQualifiedName;
-                }
-                else
-                {
-                    _typeName = type.Name;
-                }
-            }
+            _typeName = nameAttr != null ? nameAttr.TargetName : type.AssemblyQualifiedName;
+            _fieldInfos = GetFieldInfos(type);
+        }
+
+        private static FieldInfo[] GetFieldInfos(Type type)
+        {
             var fieldList = new List<FieldInfo>();
             while (type != null && type != typeof(object))
             {
@@ -38,8 +28,10 @@ namespace Hessian.Lite.Serialize
                 }
                 type = type.BaseType;
             }
-            _fieldInfos = fieldList.ToArray();
+
+            return fieldList.ToArray();
         }
+
         protected override void DoWrite(object obj, Hessian2Writer writer)
         {
             if (!writer.WriteObjectHeader(_typeName))

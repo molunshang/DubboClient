@@ -12,6 +12,6 @@ namespace Hessian.Lite.Deserialize
 
         object ReadMap(Hessian2Reader reader);
 
-        object ReadObject(Hessian2Reader reader, string[] fieldNames);
+        object ReadObject(Hessian2Reader reader, ObjectDefinition definition);
     }
 }

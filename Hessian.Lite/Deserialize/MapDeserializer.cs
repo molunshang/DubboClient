@@ -42,59 +42,54 @@ namespace Hessian.Lite.Deserialize
 
         private IDictionary<TKey, TValue> ReadGenericDictionary<TKey, TValue>(Hessian2Reader reader)
         {
-            var dic = (IDictionary<TKey, TValue>)_creator();
+            var result = (IDictionary<TKey, TValue>)_creator();
+            reader.AddRef(result);
             while (!reader.HasEnd())
             {
-                dic.Add(reader.ReadObject<TKey>(), reader.ReadObject<TValue>());
+                result.Add(reader.ReadObject<TKey>(), reader.ReadObject<TValue>());
             }
             reader.ReadToEnd();
-            return dic;
+            return result;
         }
 
         private IDictionary ReadDictionary(Hessian2Reader reader)
         {
-            var dic = (IDictionary)_creator();
+            var result = (IDictionary)_creator();
+            reader.AddRef(result);
             while (!reader.HasEnd())
             {
-                dic.Add(reader.ReadObject(), reader.ReadObject());
+                result.Add(reader.ReadObject(), reader.ReadObject());
             }
             reader.ReadToEnd();
-            return dic;
+            return result;
         }
-
 
         public override object ReadMap(Hessian2Reader reader)
         {
-            var result = _genericConverter == null ? _converter(reader) : _genericConverter(this, reader);
-            reader.AddRef(result);
-            return result;
+            return _genericConverter == null ? _converter(reader) : _genericConverter(this, reader);
         }
 
-        public override object ReadObject(Hessian2Reader reader, string[] fieldNames)
+        public override object ReadObject(Hessian2Reader reader, ObjectDefinition definition)
         {
-            object result;
             if (Type.IsGenericType)
             {
                 var dic = (IDictionary<string, object>)_creator();
-                foreach (var t in fieldNames)
+                reader.AddRef(dic);
+                foreach (var field in definition.Fields)
                 {
-                    dic.Add(t, reader.ReadObject());
+                    dic.Add(field, reader.ReadObject());
                 }
-
-                result = dic;
+                dic.Add("$Type", definition.Type);
+                return dic;
             }
-            else
+            var hashTable = (IDictionary)_creator();
+            reader.AddRef(hashTable);
+            foreach (var field in definition.Fields)
             {
-                var hashTable = (IDictionary)_creator();
-                foreach (var t in fieldNames)
-                {
-                    hashTable.Add(t, reader.ReadObject());
-                }
-
-                result = hashTable;
+                hashTable.Add(field, reader.ReadObject());
             }
-            reader.AddRef(result);
-            return result;
+            hashTable.Add("$Type", definition.Type);
+            return hashTable;
         }
     }
 }

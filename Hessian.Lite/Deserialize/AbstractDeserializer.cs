@@ -21,7 +21,7 @@ namespace Hessian.Lite.Deserialize
             throw new NotSupportedException();
         }
 
-        public virtual object ReadObject(Hessian2Reader reader, string[] fieldNames)
+        public virtual object ReadObject(Hessian2Reader reader, ObjectDefinition definition)
         {
             throw new NotSupportedException();
         }

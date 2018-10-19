@@ -1,83 +1,65 @@
 ﻿using Hessian.Lite;
-using org.apache.zookeeper;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
-using System.Threading.Tasks;
+using System.Net;
+using System.Net.Sockets;
 
 namespace Dubbo.Test
 {
     class Program
     {
-        class EmptyWatcher : Watcher
+        static void TestDubboInvoke()
         {
-            public override Task process(WatchedEvent @event)
+            var longNum = new byte[8];
+            longNum.WriteLong(12345);
+            var requestId = longNum.ReadLong(); ;
+            var codec = new Codec();
+            var request = new Request
             {
-                return Task.CompletedTask;
-            }
-        }
+                RequestId = requestId,
+                MethodName = "getLoanById",
+                ParameterTypeInfo = "Ljava/lang/String;",
+                Arguments = new[] { "20180328_86F1_406E_B86B_EE6F0D09D98E" },
+                Attachments = new Dictionary<string, string>()
+            };
+            request.Attachments["path"] = "com.fengjr.fengchu.dubbo.api.LoanService";
+            request.Attachments["interface"] = "com.fengjr.fengchu.dubbo.api.LoanService";
+            request.Attachments["version"] = "1.0.0";
+            request.Attachments["timeout"] = "100000";
 
-        static IEnumerable<int> Test()
-        {
-            yield return 1;
+            var client = new TcpClient();
+            client.Connect(IPAddress.Parse("10.254.21.59"), 20880);
+
+            var channel = client.GetStream();
+            codec.Encode(request, channel);
+            channel.Flush();
+            var resHeader = new byte[16];
+            var size = channel.Read(resHeader, 0, 16);
+            while (size < 16)
+            {
+                size += channel.Read(resHeader, 0, 16 - size);
+            }
+            Console.WriteLine(resHeader.ReadLong(4));
+            var bodyLength = resHeader.ReadInt(12);
+            var body = new byte[bodyLength];
+            size = channel.Read(body, 0, bodyLength);
+            while (size < bodyLength)
+            {
+                size += channel.Read(body, size, bodyLength - size);
+            }
+            var stream = new MemoryStream(body);
+            var input = new Hessian2Reader(stream);
+            var flag = input.ReadObject();
+            Console.WriteLine(flag);
+            var res = input.ReadObject();
+            Console.WriteLine(res);
         }
 
         static void Main(string[] args)
         {
-            //var type = typeof(int[]);
-            //Console.WriteLine(type.BaseType);
-            //uint n = 123;
-            //var strem = new MemoryStream();
-            //var hessian = new CHessianOutput(strem);
-            //hessian.WriteObject(n);
-            //File.WriteAllBytes("hessian.test", strem.ToArray());
-            //return;
-            //Console.WriteLine("Hello World!");
-            //var longNum = new byte[8];
-            //longNum.WriteLong(12345);
-            //var requestId = longNum.ReadLong(); ;
-            //var client = new TcpClient();
-            //client.Connect(IPAddress.Parse("10.254.21.56"), 20880);
-            //var codec = new Codec();
-            //var request = new Request
-            //{
-            //    RequestId = requestId,
-            //    MethodName = "getLoanById",
-            //    ParameterTypeInfo = "Ljava/lang/String;",
-            //    Arguments = new[] { "057489D2-3FDD-4EFB-A2F0-91C337C3D3DC" },
-            //    Attachments = new Hashtable()
-            //};
-            //request.Attachments["path"] = "com.fengjr.fengchu.dubbo.api.LoanService";
-            //request.Attachments["interface"] = "com.fengjr.fengchu.dubbo.api.LoanService";
-            //request.Attachments["version"] = "1.0.0";
-            //request.Attachments["timeout"] = "100000";
-            //var channel = client.GetStream();
-            //codec.Encode(request, channel);
-            //channel.Flush();
-            //var resHeader = new byte[16];
-            //var size = channel.Read(resHeader, 0, 16);
-            //while (size < 16)
-            //{
-            //    size += channel.Read(resHeader, 0, 16 - size);
-            //}
-            //Console.WriteLine(resHeader.ReadLong(4));
-            //var bodyLength = resHeader.ReadInt(12);
-            //var body = new byte[bodyLength];
-            //size = channel.Read(body, 0, bodyLength);
-            //while (size < bodyLength)
-            //{
-            //    size += channel.Read(body, size, bodyLength - size);
-            //}
-            //File.WriteAllBytes("test.data", body);
-            //var stream = new MemoryStream(body);
-            //Console.WriteLine(stream.Position);
-            //var input = new Hessian2Input(stream);
-            //Console.WriteLine(stream.Position);
-            //stream.Seek(0, SeekOrigin.Begin);
-            //Console.WriteLine(stream.Position);
-            //Console.WriteLine("status:{0}", input.ReadString());
-            //var obj = input.ReadObject();
-            //Console.WriteLine(obj);
+
             //ZooKeeper zookeeper = new ZooKeeper("bzk1.fengjr.inc:2181", 60 * 1000, new EmptyWatcher());
             //zookeeper.getChildrenAsync("/dubbo").ContinueWith(t =>
             //{
@@ -91,30 +73,13 @@ namespace Dubbo.Test
             //        Console.WriteLine(path);
             //    }
             //}).Wait();
-            //var data = Test();
-            //SerializeFactory.RegisterDefaultTypeMap(typeof(SortedDictionary<string, int>), "java.util.TreeMap");
+            var dicType = typeof(Program);
+            Console.WriteLine("{0},{1}", dicType.Name, dicType.FullName);
 
-            var dic = new SortedDictionary<string, int> { { "1", 1 }, { "2", 2 }, { "3", 3 } };
-            var strs = new string[15];
-            var buffer = new MemoryStream();
-            var writer = new Hessian2Writer(buffer);
-            writer.WriteObject(strs);
-            //writer.WriteObject(new byte[] { 1, 23, 4 });
-            //File.WriteAllBytes("hessian.test", buffer.ToArray());
-            //var stream = File.OpenRead("E:\\code\\dubbo-client\\Dubbo.Test\\bin\\Debug\\netcoreapp2.0\\out.test");
-            //var reader = new Hessian2Reader(stream);
-            //Console.WriteLine(reader.ReadString());
-            //var type = typeof(List<int>);
-            //var newExp = Expression.New(type.GetConstructor(new Type[0]));
-            //var m = Expression.Lambda<Func<List<int>>>(newExp).Compile();
-            //var obj = m();
-            //Console.WriteLine(obj);
-            buffer.Seek(0, SeekOrigin.Begin);
-            var reader = new Hessian2Reader(buffer);
-            var obj = reader.ReadObject();
+            var stream = File.OpenRead(@"E:\code\dubbo-client\Dubbo.Test\bin\Debug\netcoreapp2.0\out.test");
+            var reader = new Hessian2Reader(stream);
+            var obj = (IDictionary)reader.ReadObject();
             Console.WriteLine(obj);
         }
-
-
     }
 }

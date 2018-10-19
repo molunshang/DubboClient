@@ -29,6 +29,7 @@ namespace Hessian.Lite.Deserialize
         public override object ReadMap(Hessian2Reader reader)
         {
             var result = _creator();
+            reader.AddRef(result);
             while (!reader.HasEnd())
             {
                 var field = reader.ReadString();
@@ -42,14 +43,14 @@ namespace Hessian.Lite.Deserialize
                 }
             }
             reader.ReadToEnd();
-            reader.AddRef(result);
             return result;
         }
 
-        public override object ReadObject(Hessian2Reader reader, string[] fieldNames)
+        public override object ReadObject(Hessian2Reader reader, ObjectDefinition definition)
         {
             var result = _creator();
-            foreach (var field in fieldNames)
+            reader.AddRef(result);
+            foreach (var field in definition.Fields)
             {
                 if (fieldSetters.TryGetValue(field, out var setter))
                 {
@@ -60,7 +61,6 @@ namespace Hessian.Lite.Deserialize
                     reader.ReadObject();
                 }
             }
-            reader.AddRef(result);
             return result;
         }
     }

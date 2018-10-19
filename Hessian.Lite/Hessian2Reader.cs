@@ -256,10 +256,11 @@ namespace Hessian.Lite
             switch (tag)
             {
                 case Constants.DateTimeMillisecond:
-                    result = DateTimeUtils.UtcStartTime.AddMilliseconds(_reader.ReadLong());
+                    result = DateTimeUtils.UtcStartTime.AddMilliseconds(_reader.ReadLong()).ToLocalTime();
                     return true;
                 case Constants.DateTimeMinute:
-                    result = DateTimeUtils.UtcStartTime.AddMinutes(_reader.ReadInt());
+                    var seconds = _reader.ReadInt();
+                    result = DateTimeUtils.UtcStartTime.AddMinutes(seconds).ToLocalTime();
                     return true;
                 default:
                     result = default(DateTime);
@@ -498,19 +499,19 @@ namespace Hessian.Lite
             switch (tag)
             {
                 case Constants.VariableList:
-                    deserializer = SerializeFactory.GetDeserializer(ReadType());
+                    deserializer = SerializeFactory.GetListDeserializer(ReadType());
                     list = deserializer.ReadList(this, -1);
                     break;
                 case Constants.VariableUnTypeList:
-                    deserializer = SerializeFactory.GetDeserializer(SerializeFactory.DefaultCollectionType);
+                    deserializer = SerializeFactory.GetListDeserializer(null);
                     list = deserializer.ReadList(this, -1);
                     break;
                 case Constants.FixedList:
-                    deserializer = SerializeFactory.GetDeserializer(ReadType());
+                    deserializer = SerializeFactory.GetListDeserializer(ReadType());
                     list = deserializer.ReadList(this, ReadInt());
                     break;
                 case Constants.FixedUnTypeList:
-                    deserializer = SerializeFactory.GetDeserializer(SerializeFactory.DefaultCollectionType);
+                    deserializer = SerializeFactory.GetListDeserializer(null);
                     list = deserializer.ReadList(this, ReadInt());
                     break;
                 case 0x70:
@@ -521,7 +522,7 @@ namespace Hessian.Lite
                 case 0x75:
                 case 0x76:
                 case 0x77:
-                    deserializer = SerializeFactory.GetDeserializer(ReadType());
+                    deserializer = SerializeFactory.GetListDeserializer(ReadType());
                     list = deserializer.ReadList(this, tag - 0x70);
                     break;
                 case 0x78:
@@ -532,7 +533,7 @@ namespace Hessian.Lite
                 case 0x7d:
                 case 0x7e:
                 case 0x7f:
-                    deserializer = SerializeFactory.GetDeserializer(SerializeFactory.DefaultCollectionType);
+                    deserializer = SerializeFactory.GetListDeserializer(null);
                     list = deserializer.ReadList(this, tag - 0x78);
                     break;
                 default:
@@ -553,7 +554,7 @@ namespace Hessian.Lite
                     map = deserializer.ReadMap(this);
                     return true;
                 case Constants.Map:
-                    deserializer = SerializeFactory.GetDeserializer(ReadType());
+                    deserializer = SerializeFactory.GetDeserializer(ReadType(), SerializeFactory.DefaultDictionaryType);
                     map = deserializer.ReadMap(this);
                     return true;
                 default:
@@ -587,18 +588,20 @@ namespace Hessian.Lite
                 case 0x6e:
                 case 0x6f:
                     var refIndex = tag - 0x60;
-                    if (defs.Count <= 0)
-                        throw new HessianException($"No classes defined at reference '{refIndex}'");
+                    if (defs.Count <= refIndex)
+                        throw new HessianException($"class ref #{refIndex} is greater than the number of valid class defs ({defs.Count})");
                     obj = ReadObjectInstance(null, defs[refIndex]);
                     return true;
                 case Constants.Object:
                     refIndex = ReadInt();
-                    if (defs.Count <= 0)
-                        throw new HessianException($"No classes defined at reference '{refIndex}'");
+                    if (defs.Count <= refIndex)
+                        throw new HessianException($"class ref #{refIndex} is greater than the number of valid class defs ({defs.Count})");
                     obj = ReadObjectInstance(null, defs[refIndex]);
                     return true;
                 case Constants.Ref:
                     refIndex = ReadInt();
+                    if (refs.Count <= refIndex)
+                        throw new HessianException($"object ref #{refIndex} is greater than the number of valid object refs ({refs.Count})");
                     obj = refs[refIndex];
                     return true;
                 default:
@@ -609,8 +612,8 @@ namespace Hessian.Lite
 
         private object ReadObjectInstance(Type type, ObjectDefinition def)
         {
-            var deserializer = type == null ? SerializeFactory.GetDeserializer(def.Type) : SerializeFactory.GetDeserializer(type);
-            return deserializer.ReadObject(this, def.Fields);
+            var deserializer = SerializeFactory.GetDeserializer(def.Type, type);
+            return deserializer.ReadObject(this, def);
         }
 
         public void ReadObjectDefinition()
@@ -845,7 +848,7 @@ namespace Hessian.Lite
             {
                 return types[index];
             }
-            throw new IndexOutOfRangeException($"type ref #{index} is greater than the number of valid types ({types.Count})");
+            throw new HessianException($"type ref #{index} is greater than the number of valid types ({types.Count})");
         }
 
         public int ReadListStart()
@@ -877,6 +880,11 @@ namespace Hessian.Lite
         {
             refs.Add(obj);
             return refs.Count - 1;
+        }
+
+        public void ReplaceRef(int oldIndex, object newObj)
+        {
+            refs[oldIndex] = newObj;
         }
 
         public object ReadObject()
@@ -985,11 +993,11 @@ namespace Hessian.Lite
                     return ReadObjectInstance(type, defs[refIndex]);
                 case Constants.VariableList:
                     typeName = ReadType();
-                    deserializer = SerializeFactory.GetDeserializer(typeName, type);
+                    deserializer = SerializeFactory.GetListDeserializer(typeName, type);
                     return deserializer.ReadList(this, -1);
                 case Constants.FixedList:
                     typeName = ReadType();
-                    deserializer = SerializeFactory.GetDeserializer(typeName, type);
+                    deserializer = SerializeFactory.GetListDeserializer(typeName, type);
                     return deserializer.ReadList(this, ReadInt());
                 case 0x70:
                 case 0x71:
@@ -1000,13 +1008,13 @@ namespace Hessian.Lite
                 case 0x76:
                 case 0x77:
                     typeName = ReadType();
-                    deserializer = SerializeFactory.GetDeserializer(typeName, type);
+                    deserializer = SerializeFactory.GetListDeserializer(typeName, type);
                     return deserializer.ReadList(this, tag - 0x70);
                 case Constants.VariableUnTypeList:
-                    deserializer = SerializeFactory.GetDeserializer(type);
+                    deserializer = SerializeFactory.GetListDeserializer(null, type);
                     return deserializer.ReadList(this, -1);
                 case Constants.FixedUnTypeList:
-                    deserializer = SerializeFactory.GetDeserializer(type);
+                    deserializer = SerializeFactory.GetListDeserializer(null, type);
                     return deserializer.ReadList(this, ReadInt());
                 case 0x78:
                 case 0x79:
@@ -1016,7 +1024,7 @@ namespace Hessian.Lite
                 case 0x7d:
                 case 0x7e:
                 case 0x7f:
-                    deserializer = SerializeFactory.GetDeserializer(type);
+                    deserializer = SerializeFactory.GetListDeserializer(null, type);
                     return deserializer.ReadList(this, tag - 0x78);
                 case Constants.Ref:
                     refIndex = ReadInt();
@@ -1044,5 +1052,6 @@ namespace Hessian.Lite
             _reader.Position--;
             return (T)ReadObject(type);
         }
+
     }
 }

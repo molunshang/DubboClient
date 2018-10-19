@@ -12,7 +12,7 @@ namespace Dubbo
         public Type[] ParameterTypes { get; set; }
         public string ParameterTypeInfo { get; set; }
         public object[] Arguments { get; set; }
-        public Hashtable Attachments { get; set; }//IDictionary<string, string>
+        public IDictionary<string, string> Attachments { get; set; }//
 
         public string GetParameterTypeDesc()
         {
