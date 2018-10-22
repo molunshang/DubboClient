@@ -6,7 +6,7 @@
         public const byte False = (byte)'F';
         public const byte True = (byte)'T';
         //二进制数据非最后块
-        public const byte BinaryChunk = 0x62;
+        public const byte BinaryChunk = 0x41;
         //二进制数据最后块
         public const byte BinaryFinalChunk = 0x42;
         public const int BinaryChunkLength = ushort.MaxValue;

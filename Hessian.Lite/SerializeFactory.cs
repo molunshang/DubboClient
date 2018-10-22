@@ -1,4 +1,5 @@
 ﻿using Hessian.Lite.Deserialize;
+using Hessian.Lite.Exception;
 using Hessian.Lite.Serialize;
 using System;
 using System.Collections;
@@ -55,6 +56,8 @@ namespace Hessian.Lite
             type = typeof(decimal);
             SerializerMap.TryAdd(type, SingleSerializer<StringSerializer>());
             DeserializerMap.TryAdd(type, new StringDeserializer(type, str => decimal.Parse(str)));
+            DeserializerMap.TryAdd(typeof(JavaException), new JavaExceptionDeserializer());
+            DeserializerMap.TryAdd(typeof(JavaStackTrace), new JavaStackTraceDeserializer());
         }
 
         private static IHessianSerializer SingleSerializer<T>() where T : IHessianSerializer, new()
@@ -64,7 +67,7 @@ namespace Hessian.Lite
 
         private static AbstractDeserializer CreateArrayDeserializer(Type type)
         {
-            var deserializeType = typeof(ArrayDeserializer<>).MakeGenericType(type);
+            var deserializeType = typeof(ArrayDeserializer<>).MakeGenericType(type.IsArray ? type.GetElementType() : type);
             return (AbstractDeserializer)Activator.CreateInstance(deserializeType);
         }
 

@@ -10,7 +10,6 @@ namespace Hessian.Lite.Deserialize
     {
         private readonly Func<object> _creator;
         private readonly Func<MapDeserializer, Hessian2Reader, object> _genericConverter;
-        private readonly Func<Hessian2Reader, IDictionary> _converter;
         private static readonly Type SelfType = typeof(MapDeserializer);
         private static readonly MethodInfo BaseMethodInfo = SelfType.GetMethod("ReadGenericDictionary", BindingFlags.Instance | BindingFlags.NonPublic);
 
@@ -34,10 +33,6 @@ namespace Hessian.Lite.Deserialize
                 paramters.Insert(0, instanceParamter);
                 _genericConverter = Expression.Lambda<Func<MapDeserializer, Hessian2Reader, object>>(call, paramters).Compile();
             }
-            else
-            {
-                _converter = ReadDictionary;
-            }
         }
 
         private IDictionary<TKey, TValue> ReadGenericDictionary<TKey, TValue>(Hessian2Reader reader)
@@ -52,8 +47,12 @@ namespace Hessian.Lite.Deserialize
             return result;
         }
 
-        private IDictionary ReadDictionary(Hessian2Reader reader)
+        public override object ReadMap(Hessian2Reader reader)
         {
+            if (_genericConverter != null)
+            {
+                return _genericConverter(this, reader);
+            }
             var result = (IDictionary)_creator();
             reader.AddRef(result);
             while (!reader.HasEnd())
@@ -62,11 +61,6 @@ namespace Hessian.Lite.Deserialize
             }
             reader.ReadToEnd();
             return result;
-        }
-
-        public override object ReadMap(Hessian2Reader reader)
-        {
-            return _genericConverter == null ? _converter(reader) : _genericConverter(this, reader);
         }
 
         public override object ReadObject(Hessian2Reader reader, ObjectDefinition definition)
