@@ -1,6 +1,7 @@
 ﻿using Hessian.Lite.Deserialize;
 using Hessian.Lite.Exception;
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -9,13 +10,126 @@ namespace Hessian.Lite
 {
     public class Hessian2Reader
     {
+        private class BufferReadStream : Stream
+        {
+            private readonly Stream _innerStream;
+
+            private readonly int _bufferLength;
+            private byte[] _innerBuffer;
+            private int _readLength;
+            private int _offset;
+
+            public override bool CanRead => _innerStream.CanRead;
+
+            public override bool CanSeek => false;
+
+            public override bool CanWrite => false;
+
+            public override long Length => _innerStream.Length;
+
+            public override long Position
+            {
+                get => _innerStream.Position - _readLength + _offset;
+                set
+                {
+                    var offset = (int)(value - _innerStream.Position);
+                    if (offset > 0 || offset < -_readLength)
+                    {
+                        throw new InvalidOperationException($"this stream position must between {(_innerStream.Position - _readLength).ToString()} and {_innerStream.Position.ToString()}");
+                    }
+
+                    _offset += offset;
+                }
+            }
+
+
+            public BufferReadStream(Stream stream, int size = 4096)
+            {
+                _innerStream = stream;
+                _bufferLength = size;
+                _innerBuffer = ArrayPool<byte>.Shared.Rent(size);
+            }
+
+
+            private bool disposed = false;
+            protected override void Dispose(bool disposing)
+            {
+                if (disposed)
+                {
+                    return;
+                }
+                ArrayPool<byte>.Shared.Return(_innerBuffer);
+                _innerBuffer = null;
+                disposed = true;
+            }
+
+            public override int ReadByte()
+            {
+                if (_offset >= _readLength)
+                {
+                    _readLength = _innerStream.Read(_innerBuffer, 0, _bufferLength);
+                    _offset = 0;
+                }
+
+                if (_readLength == _offset)
+                {
+                    return -1;
+                }
+                return _innerBuffer[_offset++];
+
+            }
+
+            public override int Read(byte[] buffer, int offset, int count)
+            {
+                var bufferLength = _readLength - _offset;
+                if (bufferLength > 0)
+                {
+                    if (bufferLength < count)
+                    {
+                        Array.Copy(_innerBuffer, _offset, buffer, offset, bufferLength);
+                        offset += bufferLength;
+                        count -= bufferLength;
+                    }
+                    else
+                    {
+                        Array.Copy(_innerBuffer, _offset, buffer, offset, count);
+                        _offset += count;
+                        return count;
+                    }
+                }
+
+                _offset = _readLength = 0;
+                return _innerStream.Read(buffer, offset, count) + bufferLength;
+            }
+
+            public override void Flush()
+            {
+                throw new NotSupportedException();
+            }
+
+            public override long Seek(long offset, SeekOrigin origin)
+            {
+                throw new NotSupportedException();
+            }
+
+            public override void SetLength(long value)
+            {
+                throw new NotSupportedException();
+            }
+
+            public override void Write(byte[] buffer, int offset, int count)
+            {
+                throw new NotSupportedException();
+            }
+        }
+
         private readonly Stream _reader;
         private readonly List<string> types;
         private readonly List<object> refs;
         private readonly List<ObjectDefinition> defs;
         public Hessian2Reader(Stream reader)
         {
-            _reader = reader.CanSeek ? reader : new BufferedStream(reader);
+            _reader = reader.CanSeek ? reader : new BufferReadStream(reader);
             types = new List<string>();
             refs = new List<object>();
             defs = new List<ObjectDefinition>();
