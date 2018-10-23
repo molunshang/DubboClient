@@ -1,6 +1,6 @@
 ﻿using System.IO;
 
-namespace Hessian.Lite.Deserialize
+namespace Hessian.Lite.Serialize
 {
     public class StreamDeserializer : AbstractDeserializer
     {

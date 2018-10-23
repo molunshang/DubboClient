@@ -3,8 +3,9 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Reflection;
+using Hessian.Lite.Util;
 
-namespace Hessian.Lite.Deserialize
+namespace Hessian.Lite.Serialize
 {
     public class MapDeserializer : AbstractDeserializer
     {

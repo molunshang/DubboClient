@@ -1,9 +1,8 @@
-﻿using Hessian.Lite.Serialize;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 
-namespace Hessian.Lite.Deserialize
+namespace Hessian.Lite.Serialize
 {
     public class BasicDeserializer : AbstractDeserializer
     {

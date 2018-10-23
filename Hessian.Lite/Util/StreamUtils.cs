@@ -2,7 +2,7 @@
 using System.IO;
 using System.Text;
 
-namespace Hessian.Lite
+namespace Hessian.Lite.Util
 {
     public static class StreamUtils
     {
@@ -114,10 +114,16 @@ namespace Hessian.Lite
             {
                 count = buffer.Length;
             }
+
             var offset = 0;
             while (offset < count)
             {
-                offset += steam.Read(buffer, offset, count - offset);
+                var num = steam.Read(buffer, offset, count - offset);
+                if (num <= 0)
+                {
+                    throw new ArgumentException($"the stream has been read to end,but only read {offset} bytes");
+                }
+                offset += num;
             }
         }
 

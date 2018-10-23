@@ -1,7 +1,7 @@
-﻿using Hessian.Lite.Exception;
-using System;
+﻿using System;
+using Hessian.Lite.Exception;
 
-namespace Hessian.Lite.Deserialize
+namespace Hessian.Lite.Serialize
 {
     public class EnumDeserializer : AbstractDeserializer
     {

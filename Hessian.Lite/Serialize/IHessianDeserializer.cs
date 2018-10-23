@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Hessian.Lite.Deserialize
+namespace Hessian.Lite.Serialize
 {
     public interface IHessianDeserializer
     {

@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Hessian.Lite
+namespace Hessian.Lite.Util
 {
     public static class DateTimeUtils
     {

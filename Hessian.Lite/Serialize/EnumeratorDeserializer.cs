@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections;
 
-namespace Hessian.Lite.Deserialize
+namespace Hessian.Lite.Serialize
 {
     public class EnumeratorDeserializer : EnumerableDeserializer
     {

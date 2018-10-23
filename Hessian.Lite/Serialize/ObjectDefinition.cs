@@ -1,4 +1,4 @@
-﻿namespace Hessian.Lite.Deserialize
+﻿namespace Hessian.Lite.Serialize
 {
     public class ObjectDefinition
     {

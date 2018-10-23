@@ -3,7 +3,7 @@ using System.Collections.Concurrent;
 using System.Linq;
 using System.Linq.Expressions;
 
-namespace Hessian.Lite
+namespace Hessian.Lite.Util
 {
     public static class TypeUtils
     {

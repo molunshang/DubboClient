@@ -1,11 +1,12 @@
-﻿using Hessian.Lite.Attribute;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using Hessian.Lite.Attribute;
+using Hessian.Lite.Util;
 
-namespace Hessian.Lite.Deserialize
+namespace Hessian.Lite.Serialize
 {
     public class ObjectDeserializer<T> : AbstractDeserializer
     {

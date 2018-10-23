@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace Hessian.Lite.Deserialize
+namespace Hessian.Lite.Serialize
 {
     public class ArrayDeserializer<T> : AbstractDeserializer
     {

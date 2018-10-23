@@ -1,6 +1,6 @@
 ﻿using Hessian.Lite.Exception;
 
-namespace Hessian.Lite.Deserialize
+namespace Hessian.Lite.Serialize
 {
     public class JavaExceptionDeserializer : AbstractDeserializer
     {

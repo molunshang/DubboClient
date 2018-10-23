@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace Hessian.Lite.Deserialize
+namespace Hessian.Lite.Serialize
 {
     public class CollectionDeserializer : AbstractDeserializer
     {
@@ -41,7 +41,7 @@ namespace Hessian.Lite.Deserialize
             reader.AddRef(result);
             if (length >= 0)
             {
-                for (int i = 0; i < length; i++)
+                for (var i = 0; i < length; i++)
                 {
                     result.Add(reader.ReadObject<TItem>());
                 }
@@ -63,7 +63,7 @@ namespace Hessian.Lite.Deserialize
             reader.AddRef(result);
             if (length >= 0)
             {
-                for (int i = 0; i < length; i++)
+                for (var i = 0; i < length; i++)
                 {
                     result.Add(reader.ReadObject());
                 }

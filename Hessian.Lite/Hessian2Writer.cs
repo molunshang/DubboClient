@@ -2,6 +2,8 @@
 using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
+using Hessian.Lite.Serialize;
+using Hessian.Lite.Util;
 
 namespace Hessian.Lite
 {

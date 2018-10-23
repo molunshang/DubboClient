@@ -1,10 +1,11 @@
-﻿using Hessian.Lite.Deserialize;
-using Hessian.Lite.Exception;
+﻿using Hessian.Lite.Exception;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using Hessian.Lite.Serialize;
+using Hessian.Lite.Util;
 
 namespace Hessian.Lite
 {

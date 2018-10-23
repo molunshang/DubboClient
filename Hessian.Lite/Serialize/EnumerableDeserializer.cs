@@ -1,11 +1,11 @@
-﻿using Hessian.Lite.Exception;
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Reflection;
+using Hessian.Lite.Exception;
 
-namespace Hessian.Lite.Deserialize
+namespace Hessian.Lite.Serialize
 {
     public class EnumerableDeserializer : AbstractDeserializer
     {
@@ -29,7 +29,7 @@ namespace Hessian.Lite.Deserialize
             reader.AddRef(list);
             if (length >= 0)
             {
-                for (int i = 0; i < length; i++)
+                for (var i = 0; i < length; i++)
                 {
                     list.Add(reader.ReadObject<T>());
                 }
