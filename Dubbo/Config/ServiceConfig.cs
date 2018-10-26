@@ -1,7 +1,9 @@
 ﻿using Hessian.Lite.Util;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Dubbo.Config
 {
@@ -20,6 +22,7 @@ namespace Dubbo.Config
 
 
         protected IDictionary<string, string> Parameters;
+
         public string Application
         {
             get => Parameters.TryGetValue(DubboApplication, out var val) ? val : null;
@@ -63,6 +66,7 @@ namespace Dubbo.Config
             get => Parameters.TryGetValue(ServiceVersion, out var val) ? val : null;
             set => Parameters[ServiceVersion] = value;
         }
+
         //地址 ip或ip:port
         public string Address { get; set; }
         public string Protocol { get; set; }
@@ -70,17 +74,19 @@ namespace Dubbo.Config
 
         public ServiceConfig() : this(new Dictionary<string, string>())
         {
-
         }
+
         public ServiceConfig(IDictionary<string, string> parameters)
         {
-            this.Parameters = new Dictionary<string, string>(parameters);
+            Parameters = new Dictionary<string, string>(parameters);
         }
-        public virtual string ToServiceUrl()
+
+        public string ToServiceUrl()
         {
             var urlBuilder = new StringBuilder();
             urlBuilder.AppendFormat("{0}://{1}/{2}", Protocol, Address, ServiceName);
-            urlBuilder.AppendFormat("?dubbo={1}&timestamp={0}&check={2}", DateTime.Now.TimeStamp().ToString(), DubboVersion, Check.ToString());
+            urlBuilder.AppendFormat("?dubbo={1}&timestamp={0}&check={2}", DateTime.Now.TimeStamp().ToString(),
+                DubboVersion, Check.ToString());
             if (Parameters.Count <= 0)
                 return urlBuilder.ToString();
             foreach (var kv in Parameters)
@@ -92,7 +98,54 @@ namespace Dubbo.Config
 
                 urlBuilder.AppendFormat("&{0}={1}", kv.Key, kv.Value);
             }
+
             return urlBuilder.ToString();
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj is ServiceConfig other)
+            {
+                return Address == other.Address && Protocol == other.Protocol && Check == other.Check &&
+                       Parameters.Count == other.Parameters.Count && Parameters.All(
+                           kv => other.Parameters.TryGetValue(kv.Value, out var val) && kv.Value == val);
+            }
+
+            return false;
+        }
+
+        public override int GetHashCode()
+        {
+            return ToServiceUrl().GetHashCode();
+        }
+
+        public override string ToString()
+        {
+            return ToServiceUrl();
+        }
+
+        public static ServiceConfig ParseServiceUrl(string serviceUrl)
+        {
+            if (serviceUrl.IsNullOrEmpty())
+            {
+                throw new ArgumentNullException(nameof(serviceUrl));
+            }
+
+            var serviceInfo = Regex.Match(serviceUrl,
+                "(?<protocol>.+?)://(?<address>.+?)/(?<service>.+?)\\?(?<parameter>.+)", RegexOptions.Compiled);
+            if (!serviceInfo.Success)
+            {
+                throw new Exception();
+            }
+
+            var parameters = serviceInfo.Groups["parameter"].Value.Split('&').Select(line => line.Split('='))
+                .ToDictionary(kv => kv[0], kv => kv[1]);
+            return new ServiceConfig(parameters)
+            {
+                Address = serviceInfo.Groups["address"].Value,
+                Protocol = serviceInfo.Groups["protocol"].Value,
+                ServiceName = serviceInfo.Groups["service"].Value
+            };
         }
     }
 }

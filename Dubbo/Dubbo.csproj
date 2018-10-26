@@ -1,16 +1,14 @@
-<Project Sdk="Microsoft.NET.Sdk">
-
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
-
-  <ItemGroup>    
+  <ItemGroup>
+    <PackageReference Include="log4net" Version="2.0.8" />
+    <PackageReference Include="Rabbit.Zookeeper" Version="1.0.0" />
     <PackageReference Include="System.Buffers" Version="4.5.0" />
     <PackageReference Include="ZooKeeperNetEx" Version="3.4.12" />
   </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\Hessian.Lite\Hessian.Lite.csproj" />
   </ItemGroup>
-
 </Project>

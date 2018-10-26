@@ -33,10 +33,11 @@ namespace Hessian.Lite
                 get => _innerStream.Position - _readLength + _offset;
                 set
                 {
-                    var offset = (int)(value - _innerStream.Position);
+                    var offset = (int) (value - _innerStream.Position);
                     if (offset > 0 || offset < -_readLength)
                     {
-                        throw new InvalidOperationException($"this stream position must between {(_innerStream.Position - _readLength).ToString()} and {_innerStream.Position.ToString()}");
+                        throw new InvalidOperationException(
+                            $"this stream position must between {(_innerStream.Position - _readLength).ToString()} and {_innerStream.Position.ToString()}");
                     }
 
                     _offset += offset;
@@ -53,12 +54,14 @@ namespace Hessian.Lite
 
 
             private bool disposed = false;
+
             protected override void Dispose(bool disposing)
             {
                 if (disposed)
                 {
                     return;
                 }
+
                 ArrayPool<byte>.Shared.Return(_innerBuffer);
                 _innerBuffer = null;
                 disposed = true;
@@ -76,8 +79,8 @@ namespace Hessian.Lite
                 {
                     return -1;
                 }
-                return _innerBuffer[_offset++];
 
+                return _innerBuffer[_offset++];
             }
 
             public override int Read(byte[] buffer, int offset, int count)
@@ -128,6 +131,7 @@ namespace Hessian.Lite
         private readonly List<string> types;
         private readonly List<object> refs;
         private readonly List<ObjectDefinition> defs;
+
         public Hessian2Reader(Stream reader)
         {
             _reader = reader.CanSeek ? reader : new BufferReadStream(reader);
@@ -155,6 +159,7 @@ namespace Hessian.Lite
                     result = false;
                     return false;
             }
+
             return true;
         }
 
@@ -266,6 +271,7 @@ namespace Hessian.Lite
                     result = 0;
                     return false;
             }
+
             return true;
         }
 
@@ -340,6 +346,7 @@ namespace Hessian.Lite
                     result = 0;
                     return false;
             }
+
             return true;
         }
 
@@ -363,6 +370,7 @@ namespace Hessian.Lite
                     result = 0.0D;
                     return false;
             }
+
             return true;
         }
 
@@ -453,6 +461,7 @@ namespace Hessian.Lite
                         str.Append(_reader.ReadUtf8String(length));
                         isLast = ReadStringLength(out length);
                     }
+
                     result = str.ToString();
                     return true;
                 case Constants.StringFinal:
@@ -568,6 +577,7 @@ namespace Hessian.Lite
                                 buffer = new byte[length];
                             }
                         }
+
                         result = dataStream.ToArray();
                     }
 
@@ -603,6 +613,7 @@ namespace Hessian.Lite
                     result = null;
                     return false;
             }
+
             result = new byte[length];
             _reader.ReadBytes(result);
             return true;
@@ -704,19 +715,22 @@ namespace Hessian.Lite
                 case 0x6f:
                     var refIndex = tag - 0x60;
                     if (defs.Count <= refIndex)
-                        throw new HessianException($"class ref #{refIndex} is greater than the number of valid class defs ({defs.Count})");
+                        throw new HessianException(
+                            $"class ref #{refIndex} is greater than the number of valid class defs ({defs.Count})");
                     obj = ReadObjectInstance(null, defs[refIndex]);
                     return true;
                 case Constants.Object:
                     refIndex = ReadInt();
                     if (defs.Count <= refIndex)
-                        throw new HessianException($"class ref #{refIndex} is greater than the number of valid class defs ({defs.Count})");
+                        throw new HessianException(
+                            $"class ref #{refIndex} is greater than the number of valid class defs ({defs.Count})");
                     obj = ReadObjectInstance(null, defs[refIndex]);
                     return true;
                 case Constants.Ref:
                     refIndex = ReadInt();
                     if (refs.Count <= refIndex)
-                        throw new HessianException($"object ref #{refIndex} is greater than the number of valid object refs ({refs.Count})");
+                        throw new HessianException(
+                            $"object ref #{refIndex} is greater than the number of valid object refs ({refs.Count})");
                     obj = refs[refIndex];
                     return true;
                 default:
@@ -751,8 +765,10 @@ namespace Hessian.Lite
             {
                 return;
             }
+
             throw RaiseError("null", tag);
         }
+
         public bool ReadBool()
         {
             var tag = _reader.ReadByte();
@@ -760,28 +776,33 @@ namespace Hessian.Lite
             {
                 return false;
             }
+
             if (TryReadBool(tag, out var boolVal))
             {
                 return boolVal;
             }
+
             if (TryReadInt(tag, out var intVal))
             {
                 return intVal != 0;
             }
+
             if (TryReadLong(tag, out var longVal))
             {
                 return longVal != 0;
             }
+
             if (TryReadDouble(tag, out var doubleVal))
             {
                 return doubleVal == 0.0;
             }
+
             throw RaiseError("bool", tag);
         }
 
         public short ReadShort()
         {
-            return (short)ReadInt();
+            return (short) ReadInt();
         }
 
         public int ReadInt()
@@ -804,12 +825,14 @@ namespace Hessian.Lite
 
             if (TryReadLong(tag, out var longResult))
             {
-                return (int)longResult;
+                return (int) longResult;
             }
+
             if (TryReadDouble(tag, out var doubleVal))
             {
-                return (int)doubleVal;
+                return (int) doubleVal;
             }
+
             throw RaiseError("int", tag);
         }
 
@@ -838,14 +861,15 @@ namespace Hessian.Lite
 
             if (TryReadDouble(tag, out var doubleVal))
             {
-                return (long)doubleVal;
+                return (long) doubleVal;
             }
+
             throw RaiseError("long", tag);
         }
 
         public float ReadFloat()
         {
-            return (float)ReadDouble();
+            return (float) ReadDouble();
         }
 
         public double ReadDouble()
@@ -860,6 +884,7 @@ namespace Hessian.Lite
             {
                 return doubleVal;
             }
+
             if (TryReadInt(tag, out var intResult))
             {
                 return intResult;
@@ -886,11 +911,18 @@ namespace Hessian.Lite
             {
                 return default(DateTime);
             }
+
             if (TryReadDate(tag, out var result))
             {
                 return result;
             }
+
             throw RaiseError("date", tag);
+        }
+
+        public byte ReadByte()
+        {
+            return (byte) _reader.ReadByte();
         }
 
 
@@ -906,6 +938,7 @@ namespace Hessian.Lite
             {
                 return result;
             }
+
             throw RaiseError("bytes", tag);
         }
 
@@ -921,10 +954,12 @@ namespace Hessian.Lite
             {
                 return result;
             }
+
             if (TryReadDouble(tag, out var doubleVal))
             {
                 return doubleVal.ToString();
             }
+
             if (TryReadInt(tag, out var intResult))
             {
                 return intResult.ToString();
@@ -963,6 +998,7 @@ namespace Hessian.Lite
             {
                 return types[index];
             }
+
             throw new HessianException($"type ref #{index} is greater than the number of valid types ({types.Count})");
         }
 
@@ -1069,6 +1105,7 @@ namespace Hessian.Lite
             {
                 return ReadObject();
             }
+
             var tag = _reader.ReadByte();
             IHessianDeserializer deserializer;
             switch (tag)
@@ -1080,7 +1117,9 @@ namespace Hessian.Lite
                     return deserializer.ReadMap(this);
                 case Constants.Map:
                     var typeName = ReadType();
-                    deserializer = string.IsNullOrEmpty(typeName) ? SerializeFactory.GetDeserializer(type) : SerializeFactory.GetDeserializer(typeName, type);
+                    deserializer = string.IsNullOrEmpty(typeName)
+                        ? SerializeFactory.GetDeserializer(type)
+                        : SerializeFactory.GetDeserializer(typeName, type);
                     return deserializer.ReadMap(this);
                 case Constants.ClassDef:
                     ReadObjectDefinition();
@@ -1156,8 +1195,9 @@ namespace Hessian.Lite
             var type = typeof(T);
             if (type == typeof(object))
             {
-                return (T)ReadObject();
+                return (T) ReadObject();
             }
+
             var tag = _reader.ReadByte();
             if (tag == Constants.Null)
             {
@@ -1165,8 +1205,7 @@ namespace Hessian.Lite
             }
 
             _reader.Position--;
-            return (T)ReadObject(type);
+            return (T) ReadObject(type);
         }
-
     }
 }

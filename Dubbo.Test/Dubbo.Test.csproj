@@ -1,13 +1,13 @@
-<Project Sdk="Microsoft.NET.Sdk">
-
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Rabbit.Zookeeper" Version="1.0.0" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Dubbo\Dubbo.csproj" />
     <ProjectReference Include="..\Hessian.Lite\Hessian.Lite.csproj" />
   </ItemGroup>
-
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>netcoreapp2.0</TargetFramework>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
   </PropertyGroup>
-
 </Project>

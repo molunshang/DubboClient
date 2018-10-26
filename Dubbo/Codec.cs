@@ -1,6 +1,10 @@
-﻿using Hessian.Lite;
+﻿using System;
+using System.Collections.Generic;
+using Hessian.Lite;
 using Hessian.Lite.IO;
 using System.IO;
+using Hessian.Lite.Exception;
+using Hessian.Lite.Util;
 
 namespace Dubbo
 {
@@ -13,24 +17,31 @@ namespace Dubbo
         const byte RequestFlag = 128;
         const byte TwowayFlag = 64;
         const byte EventFlag = 32;
-        const int SerializationMask = 31;
-        // protected static final short    MAGIC              = (short) 0xdabb;
-        // protected static final byte     MAGIC_HIGH         = Bytes.short2bytes(MAGIC)[0];
-        // protected static final byte     MAGIC_LOW          = Bytes.short2bytes(MAGIC)[1];
+        const int HessianSerialize = 2;
 
-        public void Encode(Request request, Stream outputStream)
+
+        public static void EncodeRequest(Request request, Stream outputStream)
         {
             var header = new byte[HeaderLength];
             header.WriteUShort(Magic);
-            header[2] = RequestFlag | 2;
-            header[2] = (byte)(header[2] | TwowayFlag);
+            header[2] = RequestFlag | HessianSerialize;
+            if (request.IsEvent)
+            {
+                header[2] |= EventFlag;
+            }
+
+            if (request.IsTwoWay)
+            {
+                header[2] |= TwowayFlag;
+            }
+
             header.WriteLong(request.RequestId, 4);
             using (var dataStream = new PoolMemoryStream())
             {
                 var output = new Hessian2Writer(dataStream);
                 output.WriteString("2.0.0");
                 output.WriteObject(request.Attachments["path"]);
-                output.WriteObject(request.Attachments["version"]);
+                output.WriteObject(request.Attachments.TryGetValue("version", out var version) ? version : null);
                 output.WriteObject(request.MethodName);
                 output.WriteString(request.ParameterTypeInfo);
                 if (request.Arguments != null && request.Arguments.Length > 0)
@@ -40,16 +51,76 @@ namespace Dubbo
                         output.WriteObject(arg);
                     }
                 }
+
                 output.WriteObject(request.Attachments);
-                header.WriteInt((int)dataStream.Length, 12);
+                header.WriteInt((int) dataStream.Length, 12);
                 outputStream.Write(header, 0, header.Length);
                 dataStream.CopyTo(outputStream);
             }
         }
 
-        public void Decode()
+        public static Response DecodeResponse(Stream inputStream, Type resultType)
         {
-            // hessiancsharp.io.CHessianOutput out=new hessiancsharp.io.CHessianOutput();
+            var resHeader = new byte[16];
+            inputStream.ReadBytes(resHeader);
+
+            if ((resHeader[2] & RequestFlag) != 0)
+            {
+                throw new ArgumentException("decode response fail. the stream is not response.");
+            }
+
+            var response = new Response
+            {
+                ResponseId = resHeader.ReadLong(4),
+                Status = resHeader[3],
+                IsEvent = (resHeader[2] & EventFlag) != 0,
+                IsTwoWay = (resHeader[2] & TwowayFlag) != 0
+            };
+            var bodyLength = resHeader.ReadInt(12);
+            var body = new byte[bodyLength];
+            inputStream.ReadBytes(body);
+            var reader = new Hessian2Reader(new MemoryStream(body));
+            if (response.IsOk)
+            {
+                if (response.IsEvent)
+                {
+                    response.Result = reader.ReadObject();
+                }
+                else
+                {
+                    var flag = (byte) reader.ReadInt();
+                    switch (flag)
+                    {
+                        case Response.Null:
+                            break;
+                        case Response.Value:
+                            response.Result = reader.ReadObject(resultType);
+                            break;
+                        case Response.Exception:
+                            response.Error = reader.ReadObject<JavaException>();
+                            break;
+                        case Response.NullWithAttachment:
+                            response.Attachments = reader.ReadObject<Dictionary<string, string>>();
+                            break;
+                        case Response.ValueWithAttachment:
+                            response.Result = reader.ReadObject(resultType);
+                            response.Attachments = reader.ReadObject<Dictionary<string, string>>();
+                            break;
+                        case Response.ExceptionWithAttachment:
+                            response.Error = reader.ReadObject<JavaException>();
+                            response.Attachments = reader.ReadObject<Dictionary<string, string>>();
+                            break;
+                        default:
+                            throw new IOException("Unknown result flag, expect '0' '1' '2', get " + flag);
+                    }
+                }
+            }
+            else
+            {
+                response.ErrorMessage = reader.ReadString();
+            }
+
+            return response;
         }
     }
 }

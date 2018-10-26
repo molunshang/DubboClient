@@ -6,23 +6,25 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web;
+using Rabbit.Zookeeper;
 
 namespace Dubbo.Registry
 {
     public class ZookeeperRegistry : AbstractRegistry
     {
-        private readonly ZooKeeper client;
-        public ZookeeperRegistry(ZooKeeper zkClient)
+        private readonly IZookeeperClient client;
+
+        public ZookeeperRegistry(IZookeeperClient zkClient)
         {
             client = zkClient;
         }
 
-        async Task CreatePath(string path, bool isParent)
+        private async Task CreatePath(string path, bool isParent)
         {
             if (isParent)
             {
-                var stat = await client.existsAsync(path);
-                if (stat != null)
+                var exists = await client.ExistsAsync(path);
+                if (exists)
                 {
                     return;
                 }
@@ -34,93 +36,32 @@ namespace Dubbo.Registry
                 await CreatePath(path.Substring(0, index), true);
             }
 
-            await client.createAsync(path, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, isParent ? CreateMode.PERSISTENT : CreateMode.EPHEMERAL).ContinueWith(
-                t =>
-                {
-                    if (t.Exception != null && t.Exception.InnerExceptions.Any(ex => ex is KeeperException.NodeExistsException))
-                    {
-                        return string.Empty;
-                    }
-                    return t.Result;
-                });
+            await client.CreateAsync(path, null, ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                isParent ? CreateMode.PERSISTENT : CreateMode.EPHEMERAL);
         }
 
-        protected override void DoRegister(ServiceConfig config)
+        protected override async Task DoRegister(ServiceConfig config)
         {
-            var path = $"/dubbo/{config.ServiceName}/consumers/{HttpUtility.UrlEncode(config.ToServiceUrl(), Encoding.UTF8)}";
-            CreatePath(path, false).ContinueWith(t =>
-            {
-                if (t.IsFaulted)
-                {
-                    Console.WriteLine("register to zookeeper fail ");
-                }
-            });
+            var path =
+                $"/dubbo/{config.ServiceName}/consumers/{HttpUtility.UrlEncode(config.ToServiceUrl(), Encoding.UTF8)}";
+            await CreatePath(path, false);
+            log.InfoFormat("register {0} success.", path);
         }
 
-        protected override void DoSubscribe(ServiceConfig config, Action<IList<ServiceConfig>> onChange)
+        protected override async Task DoSubscribe(ServiceConfig config, Action<IList<ServiceConfig>> onChange)
         {
             var path = $"/dubbo/{config.ServiceName}/providers";
-            CreatePath(path, true).ContinueWith(t =>
+            await CreatePath(path, true);
+            var childs = await client.SubscribeChildrenChange(path, ((zk, args) =>
             {
-                if (t.IsFaulted)
-                {
-                    Console.WriteLine("error happen when subscribe");
-                    return;
-                }
-
-                var childWatcher = ZookeeperWatcherWrapper.ProcessChange((state, self) =>
-                {
-                    switch (state.get_Type())
-                    {
-                        case Watcher.Event.EventType.NodeCreated:
-                        case Watcher.Event.EventType.NodeDeleted:
-                        case Watcher.Event.EventType.NodeChildrenChanged:
-                            client.existsAsync(path, self).ContinueWith(stat =>
-                            {
-                                if (stat.IsFaulted)
-                                {
-                                    return;
-                                }
-
-                                if (stat.Result == null)
-                                {
-                                    return;
-                                }
-                                client.getChildrenAsync(path, self).ContinueWith(ct =>
-                                {
-                                    if (ct.IsFaulted)
-                                    {
-                                        Console.WriteLine("error happen when getChildrenAsync");
-                                        return;
-                                    }
-
-                                    onChange(ct.Result.Children.Select(ch =>
-                                    {
-                                        Console.WriteLine(ch);
-                                        var raw = HttpUtility.UrlDecode(ch, Encoding.UTF8);
-                                        return new ServiceConfig(raw.Split('&').Select(line => line.Split('=')).ToDictionary(key => key[0], val => val[1]));
-                                    }).ToArray());
-                                });
-                            });
-                            break;
-                    }
-                });
-                client.getChildrenAsync(path, childWatcher).ContinueWith(ct =>
-                {
-                    if (ct.IsFaulted)
-                    {
-                        Console.WriteLine("error happen when getChildrenAsync");
-                        return;
-                    }
-
-                    onChange(ct.Result.Children.Select(ch =>
-                    {
-                        Console.WriteLine(ch);
-                        var raw = HttpUtility.UrlDecode(ch, Encoding.UTF8);
-                        return new ServiceConfig(raw.Split('&').Select(line => line.Split('=')).ToDictionary(key => key[0], val => val[1]));
-                    }).ToArray());
-                });
-            });
+                var configs = args.CurrentChildrens.Select(child =>
+                    ServiceConfig.ParseServiceUrl(HttpUtility.UrlDecode(child, Encoding.UTF8))).ToArray();
+                onChange(configs);
+                return Task.CompletedTask;
+            }));
+            onChange(childs.Select(child => ServiceConfig.ParseServiceUrl(HttpUtility.UrlDecode(child, Encoding.UTF8)))
+                .ToArray());
+            log.InfoFormat("subscribe {0} success.", path);
         }
     }
 }
