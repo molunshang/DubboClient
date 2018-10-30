@@ -68,7 +68,27 @@ namespace Dubbo.Config
         }
 
         //地址 ip或ip:port
-        public string Address { get; set; }
+        public string Host { get; set; }
+        public int Port { get; set; }
+
+        public string Address
+        {
+            get => Port > 0 ? Host + ":" + Port : Host;
+            set
+            {
+                var flagIndex = value.IndexOf(':');
+                if (flagIndex > -1)
+                {
+                    var infos = value.Split(':');
+                    Host = infos[0];
+                    Port = int.Parse(infos[1]);
+                    return;
+                }
+
+                Host = value;
+            }
+        }
+
         public string Protocol { get; set; }
         public bool Check { get; set; }
 

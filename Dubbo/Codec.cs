@@ -1,10 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using Hessian.Lite;
-using Hessian.Lite.IO;
-using System.IO;
+﻿using Hessian.Lite;
 using Hessian.Lite.Exception;
+using Hessian.Lite.IO;
 using Hessian.Lite.Util;
+using System;
+using System.Collections.Generic;
+using System.IO;
 
 namespace Dubbo
 {
@@ -39,21 +39,27 @@ namespace Dubbo
             using (var dataStream = new PoolMemoryStream())
             {
                 var output = new Hessian2Writer(dataStream);
-                output.WriteString("2.0.0");
-                output.WriteObject(request.Attachments["path"]);
-                output.WriteObject(request.Attachments.TryGetValue("version", out var version) ? version : null);
-                output.WriteObject(request.MethodName);
-                output.WriteString(request.ParameterTypeInfo);
-                if (request.Arguments != null && request.Arguments.Length > 0)
+                if (request.IsEvent)
                 {
-                    foreach (var arg in request.Arguments)
-                    {
-                        output.WriteObject(arg);
-                    }
+                    output.WriteNull();
                 }
-
-                output.WriteObject(request.Attachments);
-                header.WriteInt((int) dataStream.Length, 12);
+                else
+                {
+                    output.WriteString("2.0.0");
+                    output.WriteObject(request.Attachments["path"]);
+                    output.WriteObject(request.Attachments.TryGetValue("version", out var version) ? version : null);
+                    output.WriteObject(request.MethodName);
+                    output.WriteString(request.ParameterTypeInfo);
+                    if (request.Arguments != null && request.Arguments.Length > 0)
+                    {
+                        foreach (var arg in request.Arguments)
+                        {
+                            output.WriteObject(arg);
+                        }
+                    }
+                    output.WriteObject(request.Attachments);
+                }
+                header.WriteInt((int)dataStream.Length, 12);
                 outputStream.Write(header, 0, header.Length);
                 dataStream.CopyTo(outputStream);
             }
@@ -88,7 +94,7 @@ namespace Dubbo
                 }
                 else
                 {
-                    var flag = (byte) reader.ReadInt();
+                    var flag = (byte)reader.ReadInt();
                     switch (flag)
                     {
                         case Response.Null:

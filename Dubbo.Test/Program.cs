@@ -1,16 +1,13 @@
 ﻿using Dubbo.Config;
 using Dubbo.Registry;
 using Hessian.Lite;
-using org.apache.zookeeper;
+using Rabbit.Zookeeper;
+using Rabbit.Zookeeper.Implementation;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
-using System.Threading;
-using Hessian.Lite.Util;
-using Rabbit.Zookeeper;
-using Rabbit.Zookeeper.Implementation;
 
 namespace Dubbo.Test
 {
@@ -18,21 +15,16 @@ namespace Dubbo.Test
     {
         static void TestDubboInvoke()
         {
-            var longNum = new byte[8];
-            longNum.WriteLong(12345);
-            var requestId = longNum.ReadLong();
-            ;
             var request = new Request
             {
-                RequestId = requestId,
                 MethodName = "getLoanById",
                 ParameterTypeInfo = "Ljava/lang/String;",
-                Arguments = new[] {"20180328_86F1_406E_B86B_EE6F0D09D98E"},
+                Arguments = new[] { "20180328_86F1_406E_B86B_EE6F0D09D98E" },
                 Attachments = new Dictionary<string, string>()
             };
             request.Attachments["path"] = "com.fengjr.fengchu.dubbo.api.LoanService";
             request.Attachments["interface"] = "com.fengjr.fengchu.dubbo.api.LoanService";
-//            request.Attachments["version"] = "1.0.0";
+            //            request.Attachments["version"] = "1.0.0";
             request.Attachments["timeout"] = "100000";
 
             var client = new TcpClient();
@@ -63,49 +55,33 @@ namespace Dubbo.Test
             Console.WriteLine(flag);
         }
 
-        private static int requestId = 0;
-
         static void InvokeDubbo(ServiceConfig config)
         {
-            var address = config.Address.Split(':');
             var request = new Request
             {
-                RequestId = Interlocked.Increment(ref requestId),
                 MethodName = "sayHello",
                 ParameterTypeInfo = "Ljava/lang/String;",
-                Arguments = new[] {"invoke from .net client"},
+                Arguments = new[] { "invoke from .net client" },
                 Attachments = new Dictionary<string, string>(),
                 IsTwoWay = true
             };
             request.Attachments["path"] = "org.apache.dubbo.demo.DemoService";
             request.Attachments["interface"] = "org.apache.dubbo.demo.DemoService";
-//            request.Attachments["version"] = "1.0.0";
+            //            request.Attachments["version"] = "1.0.0";
             request.Attachments["timeout"] = "100000";
-
-            var client = new TcpClient();
-            client.Connect(address[0], int.Parse(address[1]));
-
-            var channel = client.GetStream();
-            while (true)
+            var connection = new Connection(config.Host, config.Port);
+            connection.Connect().ContinueWith(t =>
             {
-                try
+                if (t.IsCompletedSuccessfully)
                 {
-                    Codec.EncodeRequest(request, channel);
-                    channel.Flush();
-                    var res = Codec.DecodeResponse(channel, typeof(string));
-                    Console.WriteLine(res.IsOk ? res.Result : res.ErrorMessage);
-                    Thread.Sleep(100);
+                    connection.Send(request);
                 }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(ex);
-                }
-            }
+            });
         }
 
         static void Main(string[] args)
         {
-//            ZooKeeper zookeeper = new ZooKeeper("", 60 * 1000, ZookeeperWatcherWrapper.ProcessChange(((e, self) => { })));
+            //            ZooKeeper zookeeper = new ZooKeeper("", 60 * 1000, ZookeeperWatcherWrapper.ProcessChange(((e, self) => { })));
             IZookeeperClient zookeeper = new ZookeeperClient(new ZookeeperClientOptions()
             {
                 ConnectionString = "127.0.0.1:2181",
@@ -118,7 +94,7 @@ namespace Dubbo.Test
                 Category = "consumers",
                 Protocol = ServiceConfig.DubboConsumer,
                 ServiceName = "org.apache.dubbo.demo.DemoService",
-                Methods = new[] {"sayHello"},
+                Methods = new[] { "sayHello" },
                 Side = "consumer"
             };
             var register = new ZookeeperRegistry(zookeeper);

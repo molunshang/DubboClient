@@ -121,7 +121,7 @@ namespace Hessian.Lite.Util
                 var num = steam.Read(buffer, offset, count - offset);
                 if (num <= 0)
                 {
-                    throw new ArgumentException($"the stream has been read to end,but only read {offset} bytes");
+                    throw new IOException($"the stream has been read to end,but only read {offset} bytes");
                 }
                 offset += num;
             }
