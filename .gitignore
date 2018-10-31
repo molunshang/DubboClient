@@ -15,3 +15,5 @@ obj
 *.vsmdi
 TestResult.xml
 /.vscode
+/.idea/.idea.DubboClient/.idea
+*.iml
