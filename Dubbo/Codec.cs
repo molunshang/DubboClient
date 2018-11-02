@@ -1,4 +1,6 @@
-﻿using Hessian.Lite;
+﻿using Dubbo.Remote;
+using Dubbo.Utils;
+using Hessian.Lite;
 using Hessian.Lite.Exception;
 using Hessian.Lite.IO;
 using Hessian.Lite.Util;
@@ -46,8 +48,8 @@ namespace Dubbo
                 else
                 {
                     output.WriteString("2.0.0");
-                    output.WriteObject(request.Attachments["path"]);
-                    output.WriteObject(request.Attachments.TryGetValue("version", out var version) ? version : null);
+                    output.WriteObject(request.Service);
+                    output.WriteObject(request.Version);
                     output.WriteObject(request.MethodName);
                     output.WriteString(request.ParameterTypeInfo);
                     if (request.Arguments != null && request.Arguments.Length > 0)
@@ -65,7 +67,7 @@ namespace Dubbo
             }
         }
 
-        public static Response DecodeResponse(Stream inputStream, Type resultType)
+        public static Response DecodeResponse(Stream inputStream)
         {
             var resHeader = new byte[16];
             inputStream.ReadBytes(resHeader);
@@ -94,6 +96,8 @@ namespace Dubbo
                 }
                 else
                 {
+                    var request = RequestTasks.GetRequestTask(response.ResponseId);
+                    var resultType = request?.Request.ReturnType;
                     var flag = (byte)reader.ReadInt();
                     switch (flag)
                     {

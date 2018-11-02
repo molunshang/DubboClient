@@ -1,22 +1,26 @@
 ﻿using Dubbo.Attribute;
+using Dubbo.Config;
+using Dubbo.Registry;
+using Dubbo.Remote;
+using Dubbo.Utils;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dubbo
 {
     public class DubboClientFactory
     {
-        private readonly ConcurrentDictionary<Type, object> _singleObjects = new ConcurrentDictionary<Type, object>();
-        private readonly ConcurrentDictionary<Type, string> _typeMaps = new ConcurrentDictionary<Type, string>();
-
         private static readonly IEqualityComparer<MethodInfo> MethodEqualityComparer =
             Collection.EqualityComparer.CreateEqualityComparer<MethodInfo>(
                 (x, y) =>
                 {
-                    if (x.Name != y.Name || x.ReflectedType != y.ReturnType)
+                    if (x.Name != y.Name)
                     {
                         return false;
                     }
@@ -48,9 +52,22 @@ namespace Dubbo
                     }
 
                     return true;
-                }, m => $"{m.ReflectedType.FullName}.{m.Name}".GetHashCode());
+                }, m =>
+                {
+                    var parameterInfo = string.Join(";",
+                        m.GetParameters().Select(p =>
+                            (p.ParameterType.IsGenericType
+                                ? p.ParameterType.GetGenericTypeDefinition()
+                                : p.ParameterType).FullName));
+                    return $"{m.Name}[{parameterInfo}]".GetHashCode();
+                });
 
-        public DubboClientFactory()
+        private readonly ConcurrentDictionary<Type, object> _singleObjects = new ConcurrentDictionary<Type, object>();
+        private readonly ConcurrentDictionary<Type, string> _typeMaps = new ConcurrentDictionary<Type, string>();
+
+        private readonly AbstractRegistry registry;
+
+        private void Init()
         {
             _typeMaps.TryAdd(typeof(void), "V");
             _typeMaps.TryAdd(typeof(bool), "Z");
@@ -79,6 +96,11 @@ namespace Dubbo
             _typeMaps.TryAdd(typeof(Dictionary<,>), "Ljava/util/HashMap");
             _typeMaps.TryAdd(typeof(IList<>), "Ljava/util/List");
             _typeMaps.TryAdd(typeof(List<>), "Ljava/util/ArrayList");
+        }
+        public DubboClientFactory(AbstractRegistry registry)
+        {
+            this.registry = registry;
+            Init();
         }
 
         private static DefaultProxy Convert(object instance)
@@ -156,10 +178,18 @@ namespace Dubbo
                 {
                     throw new ArgumentException($"the type {type.Name} is not a dubbo service !");
                 }
-                var client = DispatchProxy.Create<T, DefaultProxy>();
-                var proxy = Convert(client);
-                proxy.MethodDictionary = new Dictionary<MethodInfo, InvokeContext>(MethodEqualityComparer);
+                var config = new ServiceConfig()
+                {
+                    Host = NetUtils.GetLocalHost(),
+                    Application = ".net client",
+                    Category = "consumers",
+                    Protocol = ServiceConfig.DubboConsumer,
+                    ServiceName = service.TargetService,
+                    Side = "consumer"
+                };
+                var methodDictionary = new Dictionary<MethodInfo, InvokeContext>(MethodEqualityComparer);
                 var methods = type.GetMethods(BindingFlags.Public | BindingFlags.Instance);
+                var methodNames = new List<string>(methods.Length);
                 foreach (var methodInfo in methods)
                 {
                     var dubboMethod = methodInfo.GetCustomAttribute<DubboMethodAttribute>();
@@ -167,26 +197,54 @@ namespace Dubbo
                     {
                         continue;
                     }
+
+                    var returnType = methodInfo.ReturnType;
+                    var isAsync = typeof(Task).IsAssignableFrom(returnType);
+                    if (isAsync && returnType.IsGenericType)
+                    {
+                        returnType = returnType.GetGenericArguments()[0];
+                    }
                     var parameterDesc = GetTypeDesc(methodInfo.GetParameters());
-                    proxy.MethodDictionary.Add(methodInfo, new InvokeContext
+                    methodDictionary.Add(methodInfo, new InvokeContext
                     {
                         Service = service.TargetService,
                         Group = service.Group,
                         Version = service.Version,
-                        Timeout = Math.Max(dubboMethod.TimeOut, service.TimeOut),
+                        Timeout = Math.Max(dubboMethod.Timeout, service.Timeout),
                         Method = dubboMethod.TargetMethod,
-                        ParameterTypeInfo = parameterDesc
+                        ParameterTypeInfo = parameterDesc,
+                        IsAsync = isAsync,
+                        ReturnType = returnType
                     });
+                    methodNames.Add(dubboMethod.TargetMethod);
                 }
 
+                config.Methods = methodNames.ToArray();
+                var connections = new List<Connection>();
+                registry.Register(config).Wait();
+                registry.Subscribe(config, providers =>
+                {
+                    foreach (var provider in providers)
+                    {
+                        connections.Add(new Connection(provider.Host, provider.Port));
+                    }
+                }).Wait();
+
+                var client = DispatchProxy.Create<T, DefaultProxy>();
+                var proxy = Convert(client);
+                proxy.MethodDictionary = new ReadOnlyDictionary<MethodInfo, InvokeContext>(methodDictionary);
+                proxy.Connections = connections;
                 _singleObjects.TryAdd(type, proxy);
                 return client;
             }
         }
 
-        class DefaultProxy : DispatchProxy
+        public class DefaultProxy : DispatchProxy
         {
-            internal IDictionary<MethodInfo, InvokeContext> MethodDictionary;
+            internal IReadOnlyDictionary<MethodInfo, InvokeContext> MethodDictionary;
+            internal IList<Connection> Connections;
+
+            private Random random = new Random();
             protected override object Invoke(MethodInfo targetMethod, object[] args)
             {
                 var name = targetMethod.Name;
@@ -207,14 +265,21 @@ namespace Dubbo
                         {
                             throw new InvalidOperationException($"unknow method {targetMethod.Name}");
                         }
-                        var request = new Request() { IsTwoWay = true, MethodName = context.Method, Arguments = args, Service = context.Service, ParameterTypeInfo = context.ParameterTypeInfo };
-                        break;
-
+                        var request = new Request() { IsTwoWay = true, MethodName = context.Method, Arguments = args, Service = context.Service, ParameterTypeInfo = context.ParameterTypeInfo, ReturnType = context.ReturnType, Version = context.Version };
+                        request.Attachments["group"] = context.Group;
+                        request.Attachments["timeout"] = context.Timeout > 0 ? context.Timeout.ToString() : "60000";
+                        var connection = Connections[random.Next(0, Connections.Count)];
+                        if (!connection.IsConnected)
+                        {
+                            connection.Connect().Wait();
+                        }
+                        var responseTask = connection.Send(request);
+                        if (context.IsAsync)
+                        {
+                            throw new NotImplementedException();
+                        }
+                        return responseTask.Result;
                 }
-                //var dubboMethod = targetMethod.GetCustomAttribute<DubboMethodAttribute>();
-                //var method = dubboMethod == null ? targetMethod.Name.Substring(0, 1).ToLower() + targetMethod.Name.Substring(1, targetMethod.Name.Length - 1) : dubboMethod.TargetMethod;
-                //
-                throw new NotImplementedException();
             }
         }
     }

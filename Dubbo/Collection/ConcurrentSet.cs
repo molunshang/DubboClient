@@ -22,7 +22,7 @@ namespace Dubbo.Collection
 
         void ICollection<T>.Add(T item)
         {
-            ((ISet<T>) this).Add(item);
+            ((ISet<T>)this).Add(item);
         }
 
         public void ExceptWith(IEnumerable<T> other)
@@ -92,13 +92,7 @@ namespace Dubbo.Collection
 
         public void CopyTo(T[] array, int arrayIndex)
         {
-            using (var enumerator = GetEnumerator())
-            {
-                for (int i = arrayIndex; enumerator.MoveNext() && i < array.Length; i++)
-                {
-                    array[i] = enumerator.Current;
-                }
-            }
+            _dictionary.Keys.CopyTo(array, arrayIndex);
         }
 
         public bool Remove(T item)

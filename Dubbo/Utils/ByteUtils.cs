@@ -1,7 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 
-namespace Dubbo
+namespace Dubbo.Utils
 {
     public static class ByteUtils
     {

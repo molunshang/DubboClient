@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace Dubbo
+namespace Dubbo.Remote
 {
     public class Response
     {

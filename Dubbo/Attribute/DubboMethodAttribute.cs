@@ -6,6 +6,6 @@ namespace Dubbo.Attribute
     public class DubboMethodAttribute : System.Attribute
     {
         public string TargetMethod { get; set; }
-        public int TimeOut { get; set; }
+        public int Timeout { get; set; }
     }
 }

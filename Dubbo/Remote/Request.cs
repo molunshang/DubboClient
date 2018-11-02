@@ -1,12 +1,14 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading;
 
-namespace Dubbo
+namespace Dubbo.Remote
 {
     public class Request
     {
         private static long _requestId;
         private string _service;
+        private string _version;
         private IDictionary<string, string> _attachments;
         public Request()
         {
@@ -26,6 +28,16 @@ namespace Dubbo
             }
         }
 
+        public string Version
+        {
+            get => _version;
+            set
+            {
+                _version = value;
+                Attachments["version"] = value;
+            }
+        }
+
         public string MethodName { get; set; }
         public string ParameterTypeInfo { get; set; }
         public object[] Arguments { get; set; }
@@ -42,5 +54,7 @@ namespace Dubbo
                 _attachments = value;
             }
         }
+
+        public Type ReturnType { get; set; }
     }
 }

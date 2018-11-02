@@ -1,4 +1,6 @@
-﻿namespace Dubbo
+﻿using System;
+
+namespace Dubbo
 {
     public class InvokeContext
     {
@@ -8,5 +10,7 @@
         public int Timeout { get; set; }
         public string Method { get; set; }
         public string ParameterTypeInfo { get; set; }
+        public bool IsAsync { get; set; }
+        public Type ReturnType { get; set; }
     }
 }

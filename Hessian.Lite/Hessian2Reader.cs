@@ -1,11 +1,11 @@
 ﻿using Hessian.Lite.Exception;
+using Hessian.Lite.Serialize;
+using Hessian.Lite.Util;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using Hessian.Lite.Serialize;
-using Hessian.Lite.Util;
 
 namespace Hessian.Lite
 {
@@ -33,7 +33,7 @@ namespace Hessian.Lite
                 get => _innerStream.Position - _readLength + _offset;
                 set
                 {
-                    var offset = (int) (value - _innerStream.Position);
+                    var offset = (int)(value - _innerStream.Position);
                     if (offset > 0 || offset < -_readLength)
                     {
                         throw new InvalidOperationException(
@@ -802,7 +802,7 @@ namespace Hessian.Lite
 
         public short ReadShort()
         {
-            return (short) ReadInt();
+            return (short)ReadInt();
         }
 
         public int ReadInt()
@@ -825,12 +825,12 @@ namespace Hessian.Lite
 
             if (TryReadLong(tag, out var longResult))
             {
-                return (int) longResult;
+                return (int)longResult;
             }
 
             if (TryReadDouble(tag, out var doubleVal))
             {
-                return (int) doubleVal;
+                return (int)doubleVal;
             }
 
             throw RaiseError("int", tag);
@@ -861,7 +861,7 @@ namespace Hessian.Lite
 
             if (TryReadDouble(tag, out var doubleVal))
             {
-                return (long) doubleVal;
+                return (long)doubleVal;
             }
 
             throw RaiseError("long", tag);
@@ -869,7 +869,7 @@ namespace Hessian.Lite
 
         public float ReadFloat()
         {
-            return (float) ReadDouble();
+            return (float)ReadDouble();
         }
 
         public double ReadDouble()
@@ -922,7 +922,7 @@ namespace Hessian.Lite
 
         public byte ReadByte()
         {
-            return (byte) _reader.ReadByte();
+            return (byte)_reader.ReadByte();
         }
 
 
@@ -1101,7 +1101,7 @@ namespace Hessian.Lite
 
         public object ReadObject(Type type)
         {
-            if (type == typeof(object))
+            if (type == null || type == typeof(object))
             {
                 return ReadObject();
             }
@@ -1195,7 +1195,7 @@ namespace Hessian.Lite
             var type = typeof(T);
             if (type == typeof(object))
             {
-                return (T) ReadObject();
+                return (T)ReadObject();
             }
 
             var tag = _reader.ReadByte();
@@ -1205,7 +1205,7 @@ namespace Hessian.Lite
             }
 
             _reader.Position--;
-            return (T) ReadObject(type);
+            return (T)ReadObject(type);
         }
     }
 }

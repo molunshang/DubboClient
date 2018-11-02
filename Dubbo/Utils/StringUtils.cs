@@ -1,4 +1,4 @@
-﻿namespace Dubbo
+﻿namespace Dubbo.Utils
 {
     public static class StringUtils
     {
