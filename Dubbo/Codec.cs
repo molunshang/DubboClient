@@ -128,6 +128,7 @@ namespace Dubbo
             else
             {
                 response.ErrorMessage = reader.ReadString();
+                response.Error = new Exception(response.ErrorMessage);
             }
 
             return response;

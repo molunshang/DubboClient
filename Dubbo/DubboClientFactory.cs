@@ -80,28 +80,25 @@ namespace Dubbo
             _typeMaps.TryAdd(typeof(long), "J");
             _typeMaps.TryAdd(typeof(double), "D");
             _typeMaps.TryAdd(typeof(float), "F");
-            _typeMaps.TryAdd(typeof(decimal), "Ljava/math/BigDecimal");
-            _typeMaps.TryAdd(typeof(decimal?), "Ljava/math/BigDecimal");
-            _typeMaps.TryAdd(typeof(DateTime), "Ljava/util/Date");
-            _typeMaps.TryAdd(typeof(DateTime?), "Ljava/util/Date");
+            _typeMaps.TryAdd(typeof(decimal), "Ljava/math/BigDecimal;");
+            _typeMaps.TryAdd(typeof(decimal?), "Ljava/math/BigDecimal;");
+            _typeMaps.TryAdd(typeof(DateTime), "Ljava/util/Date;");
+            _typeMaps.TryAdd(typeof(DateTime?), "Ljava/util/Date;");
 
-            _typeMaps.TryAdd(typeof(object), "Ljava/lang/Object");
-            _typeMaps.TryAdd(typeof(int?), "Ljava/lang/Integer");
-            _typeMaps.TryAdd(typeof(long?), "Ljava/lang/Long");
-            _typeMaps.TryAdd(typeof(byte?), "Ljava/lang/Byte");
-            _typeMaps.TryAdd(typeof(uint?), "Ljava/lang/Long");
-            _typeMaps.TryAdd(typeof(ushort?), "Ljava/lang/Integer");
+            _typeMaps.TryAdd(typeof(object), "Ljava/lang/Object;");
+            _typeMaps.TryAdd(typeof(int?), "Ljava/lang/Integer;");
+            _typeMaps.TryAdd(typeof(long?), "Ljava/lang/Long;");
+            _typeMaps.TryAdd(typeof(byte?), "Ljava/lang/Byte;");
+            _typeMaps.TryAdd(typeof(uint?), "Ljava/lang/Long;");
+            _typeMaps.TryAdd(typeof(ushort?), "Ljava/lang/Integer;");
+            _typeMaps.TryAdd(typeof(string), "Ljava/lang/String;");
 
-            _typeMaps.TryAdd(typeof(IDictionary<,>), "Ljava/util/Map");
-            _typeMaps.TryAdd(typeof(Dictionary<,>), "Ljava/util/HashMap");
-            _typeMaps.TryAdd(typeof(IList<>), "Ljava/util/List");
-            _typeMaps.TryAdd(typeof(List<>), "Ljava/util/ArrayList");
+            _typeMaps.TryAdd(typeof(IDictionary<,>), "Ljava/util/Map;");
+            _typeMaps.TryAdd(typeof(Dictionary<,>), "Ljava/util/HashMap;");
+            _typeMaps.TryAdd(typeof(IList<>), "Ljava/util/List;");
+            _typeMaps.TryAdd(typeof(List<>), "Ljava/util/ArrayList;");
         }
-        public DubboClientFactory(AbstractRegistry registry)
-        {
-            this.registry = registry;
-            Init();
-        }
+
 
         private static DefaultProxy Convert(object instance)
         {
@@ -153,13 +150,18 @@ namespace Dubbo
 
             return typeInfo.ToString();
         }
+        public DubboClientFactory(AbstractRegistry registry)
+        {
+            this.registry = registry;
+            Init();
+        }
 
         public void RegisterTypeMap(Type type, string targetType)
         {
-            _typeMaps.TryAdd(type, targetType);
+            _typeMaps.TryAdd(type, targetType.EndsWith(";") ? targetType : targetType + ";");
         }
 
-        public T RequireClient<T>()
+        public T CreateClient<T>()
         {
             var type = typeof(T);
             if (_singleObjects.TryGetValue(type, out var instance))
@@ -278,7 +280,12 @@ namespace Dubbo
                         {
                             throw new NotImplementedException();
                         }
-                        return responseTask.Result;
+                        var response = responseTask.Result;
+                        if (response.Error != null)
+                        {
+                            throw response.Error;
+                        }
+                        return response.Result;
                 }
             }
         }

@@ -107,30 +107,10 @@ namespace Dubbo.Test
                 ConnectionTimeout = TimeSpan.FromSeconds(30)
             });
             var factory = new DubboClientFactory(new ZookeeperRegistry(zookeeper));
-            var test = factory.RequireClient<ITest>();
+            var test = factory.CreateClient<ITest>();
+
             var res = test.Hello("simple client");
             Console.WriteLine(res);
-            //var config = new ServiceConfig()
-            //{
-            //    Address = "169.254.89.54",
-            //    Application = ".net client",
-            //    Category = "consumers",
-            //    Protocol = ServiceConfig.DubboConsumer,
-            //    ServiceName = "org.apache.dubbo.demo.DemoService",
-            //    Methods = new[] { "sayHello" },
-            //    Side = "consumer"
-            //};
-            //var register = new ZookeeperRegistry(zookeeper);
-            //var providerConfigs = new List<ServiceConfig>();
-            //var tasks = new Task[2];
-            //tasks[0] = register.Register(config);
-            //tasks[1] = register.Subscribe(config, list => { providerConfigs.AddRange(list); });
-            //Task.WaitAll(tasks);
-            //foreach (var providerConfig in providerConfigs)
-            //{
-            //    Console.WriteLine(providerConfig);
-            //    InvokeDubbo(providerConfig);
-            //}
             Console.ReadKey();
         }
     }

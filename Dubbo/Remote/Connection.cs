@@ -16,7 +16,7 @@ namespace Dubbo.Remote
         private readonly int _port;
         private TcpClient _client;
         private NetworkStream _rwStream;
-        private ConcurrentDictionary<long, TaskCompletionSource<Response>> waitingTasks = new ConcurrentDictionary<long, TaskCompletionSource<Response>>();
+        private ConcurrentDictionary<long, TaskCompletionSource<Response>> waitingTasks;
         private BlockingCollection<Request> sendQueue = new BlockingCollection<Request>();
 
         public bool IsConnected => _client.Connected && _rwStream != null;
@@ -41,10 +41,12 @@ namespace Dubbo.Remote
         {
             Task.Factory.StartNew(() =>
             {
-                while (sendQueue.TryTake(out var request))
+
+                while (!sendQueue.IsCompleted)
                 {
                     try
                     {
+                        var request = sendQueue.Take();
                         Codec.EncodeRequest(request, _rwStream);
                         _rwStream.Flush();
                         LastWriteTime = DateTime.UtcNow;
@@ -72,12 +74,11 @@ namespace Dubbo.Remote
                         {
                             if (response.IsEvent)
                             {
-                                Console.WriteLine("is heartbeat");
+                                log.Debug("Receive HeartBeat Response");
                             }
                             else
                             {
                                 task.TrySetResult(response);
-                                Console.WriteLine(response.Result);
                             }
                         }
                         LastReadTime = DateTime.UtcNow;
