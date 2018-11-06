@@ -4,9 +4,9 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="log4net" Version="2.0.8" />
+    <PackageReference Include="NetCoreStack.DispatchProxyAsync" Version="2.0.2" />
     <PackageReference Include="Rabbit.Zookeeper" Version="1.0.0" />
     <PackageReference Include="System.Buffers" Version="4.5.0" />
-    <PackageReference Include="System.Reflection.DispatchProxy" Version="4.5.1" />
     <PackageReference Include="ZooKeeperNetEx" Version="3.4.12" />
   </ItemGroup>
   <ItemGroup>

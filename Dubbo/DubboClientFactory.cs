@@ -66,6 +66,7 @@ namespace Dubbo
         private readonly ConcurrentDictionary<Type, string> _typeMaps = new ConcurrentDictionary<Type, string>();
 
         private readonly AbstractRegistry registry;
+        private readonly ConnectionFactory connectionFactory;
 
         private void Init()
         {
@@ -81,17 +82,22 @@ namespace Dubbo
             _typeMaps.TryAdd(typeof(double), "D");
             _typeMaps.TryAdd(typeof(float), "F");
             _typeMaps.TryAdd(typeof(decimal), "Ljava/math/BigDecimal;");
-            _typeMaps.TryAdd(typeof(decimal?), "Ljava/math/BigDecimal;");
             _typeMaps.TryAdd(typeof(DateTime), "Ljava/util/Date;");
-            _typeMaps.TryAdd(typeof(DateTime?), "Ljava/util/Date;");
 
             _typeMaps.TryAdd(typeof(object), "Ljava/lang/Object;");
-            _typeMaps.TryAdd(typeof(int?), "Ljava/lang/Integer;");
-            _typeMaps.TryAdd(typeof(long?), "Ljava/lang/Long;");
+            _typeMaps.TryAdd(typeof(bool?), "Ljava/lang/Boolean;");
+            _typeMaps.TryAdd(typeof(char?), "Ljava/lang/Character;");
             _typeMaps.TryAdd(typeof(byte?), "Ljava/lang/Byte;");
-            _typeMaps.TryAdd(typeof(uint?), "Ljava/lang/Long;");
+            _typeMaps.TryAdd(typeof(short?), "Ljava/lang/Short;");
             _typeMaps.TryAdd(typeof(ushort?), "Ljava/lang/Integer;");
+            _typeMaps.TryAdd(typeof(int?), "Ljava/lang/Integer;");
+            _typeMaps.TryAdd(typeof(uint?), "Ljava/lang/Long;");
+            _typeMaps.TryAdd(typeof(long?), "Ljava/lang/Long;");
+            _typeMaps.TryAdd(typeof(double?), "Ljava/lang/Double;");
+            _typeMaps.TryAdd(typeof(float?), "Ljava/lang/Float;");
+            _typeMaps.TryAdd(typeof(decimal?), "Ljava/math/BigDecimal;");
             _typeMaps.TryAdd(typeof(string), "Ljava/lang/String;");
+            _typeMaps.TryAdd(typeof(DateTime?), "Ljava/util/Date;");
 
             _typeMaps.TryAdd(typeof(IDictionary<,>), "Ljava/util/Map;");
             _typeMaps.TryAdd(typeof(Dictionary<,>), "Ljava/util/HashMap;");
@@ -150,9 +156,10 @@ namespace Dubbo
 
             return typeInfo.ToString();
         }
-        public DubboClientFactory(AbstractRegistry registry)
+        public DubboClientFactory(AbstractRegistry registry, ConnectionFactory connectionFactory)
         {
             this.registry = registry;
+            this.connectionFactory = connectionFactory;
             Init();
         }
 
@@ -231,8 +238,7 @@ namespace Dubbo
                         connections.Add(new Connection(provider.Host, provider.Port));
                     }
                 }).Wait();
-
-                var client = DispatchProxy.Create<T, DefaultProxy>();
+                var client = DispatchProxyAsync.Create<T, DefaultProxy>();
                 var proxy = Convert(client);
                 proxy.MethodDictionary = new ReadOnlyDictionary<MethodInfo, InvokeContext>(methodDictionary);
                 proxy.Connections = connections;
@@ -241,13 +247,44 @@ namespace Dubbo
             }
         }
 
-        public class DefaultProxy : DispatchProxy
+        public class DefaultProxy : DispatchProxyAsync
         {
             internal IReadOnlyDictionary<MethodInfo, InvokeContext> MethodDictionary;
             internal IList<Connection> Connections;
 
             private Random random = new Random();
-            protected override object Invoke(MethodInfo targetMethod, object[] args)
+
+            private Task<Response> DoInvoke(MethodInfo targetMethod, object[] args)
+            {
+                if (!MethodDictionary.TryGetValue(targetMethod, out var context))
+                {
+                    throw new InvalidOperationException($"unknow method {targetMethod.Name}");
+                }
+
+                var request = new Request
+                {
+                    IsTwoWay = true,
+                    MethodName = context.Method,
+                    Arguments = args,
+                    Service = context.Service,
+                    ParameterTypeInfo = context.ParameterTypeInfo,
+                    ReturnType = context.ReturnType,
+                    Version = context.Version,
+                    Attachments =
+                    {
+                        ["group"] = context.Group,
+                        ["timeout"] = context.Timeout > 0 ? context.Timeout.ToString() : "60000"
+                    }
+                };
+                var connection = Connections[random.Next(0, Connections.Count)];
+                if (!connection.IsConnected)
+                {
+                    connection.Connect();
+                }
+                return connection.Send(request);
+            }
+
+            public override object Invoke(MethodInfo targetMethod, object[] args)
             {
                 var name = targetMethod.Name;
                 switch (name)
@@ -263,30 +300,20 @@ namespace Dubbo
                     case "MemberwiseClone":
                         return MemberwiseClone();
                     default:
-                        if (!MethodDictionary.TryGetValue(targetMethod, out var context))
-                        {
-                            throw new InvalidOperationException($"unknow method {targetMethod.Name}");
-                        }
-                        var request = new Request() { IsTwoWay = true, MethodName = context.Method, Arguments = args, Service = context.Service, ParameterTypeInfo = context.ParameterTypeInfo, ReturnType = context.ReturnType, Version = context.Version };
-                        request.Attachments["group"] = context.Group;
-                        request.Attachments["timeout"] = context.Timeout > 0 ? context.Timeout.ToString() : "60000";
-                        var connection = Connections[random.Next(0, Connections.Count)];
-                        if (!connection.IsConnected)
-                        {
-                            connection.Connect().Wait();
-                        }
-                        var responseTask = connection.Send(request);
-                        if (context.IsAsync)
-                        {
-                            throw new NotImplementedException();
-                        }
-                        var response = responseTask.Result;
-                        if (response.Error != null)
-                        {
-                            throw response.Error;
-                        }
-                        return response.Result;
+                        var result = DoInvoke(targetMethod, args).ConfigureAwait(false);
+                        return result.GetAwaiter().GetResult().Result;
                 }
+            }
+
+            public override Task InvokeAsync(MethodInfo method, object[] args)
+            {
+                return DoInvoke(method, args);
+            }
+
+            public override async Task<T> InvokeAsyncT<T>(MethodInfo method, object[] args)
+            {
+                var result = await DoInvoke(method, args);
+                return (T)result.Result;
             }
         }
     }
