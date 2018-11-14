@@ -21,10 +21,10 @@ namespace Dubbo
 
         private void CheckAlive(object args)
         {
-
             try
             {
-                foreach (var connection in _connections.Values)
+                var liveConnections = _connections.Values;
+                foreach (var connection in liveConnections)
                 {
                     if (!connection.IsConnected || DateTime.UtcNow - connection.LastReadTime < _heartBeatPeriod ||
                         DateTime.UtcNow - connection.LastWriteTime < _heartBeatPeriod)

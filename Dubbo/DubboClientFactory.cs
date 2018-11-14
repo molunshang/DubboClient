@@ -1,7 +1,6 @@
 ﻿using Dubbo.Attribute;
 using Dubbo.Config;
 using Dubbo.Registry;
-using Dubbo.Remote;
 using Dubbo.Utils;
 using System;
 using System.Collections.Concurrent;
@@ -66,7 +65,6 @@ namespace Dubbo
         private readonly ConcurrentDictionary<Type, string> _typeMaps = new ConcurrentDictionary<Type, string>();
 
         private readonly AbstractRegistry registry;
-        private readonly ConnectionFactory connectionFactory;
 
         private void Init()
         {
@@ -156,10 +154,9 @@ namespace Dubbo
 
             return typeInfo.ToString();
         }
-        public DubboClientFactory(AbstractRegistry registry, ConnectionFactory connectionFactory)
+        public DubboClientFactory(AbstractRegistry registry)
         {
             this.registry = registry;
-            this.connectionFactory = connectionFactory;
             Init();
         }
 
@@ -227,21 +224,17 @@ namespace Dubbo
                     });
                     methodNames.Add(dubboMethod.TargetMethod);
                 }
-
                 config.Methods = methodNames.ToArray();
-                var connections = new List<Connection>();
+
+                var dubboInvoker = new DubboInvoker(new ReadOnlyDictionary<MethodInfo, InvokeContext>(methodDictionary));
                 registry.Register(config).Wait();
                 registry.Subscribe(config, providers =>
                 {
-                    foreach (var provider in providers)
-                    {
-                        connections.Add(new Connection(provider.Host, provider.Port));
-                    }
+                    dubboInvoker.RefreshConnection(providers.ToSet());
                 }).Wait();
                 var client = DispatchProxyAsync.Create<T, DefaultProxy>();
                 var proxy = Convert(client);
-                proxy.MethodDictionary = new ReadOnlyDictionary<MethodInfo, InvokeContext>(methodDictionary);
-                proxy.Connections = connections;
+                proxy.DubboInvoker = dubboInvoker;
                 _singleObjects.TryAdd(type, proxy);
                 return client;
             }
@@ -249,40 +242,7 @@ namespace Dubbo
 
         public class DefaultProxy : DispatchProxyAsync
         {
-            internal IReadOnlyDictionary<MethodInfo, InvokeContext> MethodDictionary;
-            internal IList<Connection> Connections;
-
-            private Random random = new Random();
-
-            private Task<Response> DoInvoke(MethodInfo targetMethod, object[] args)
-            {
-                if (!MethodDictionary.TryGetValue(targetMethod, out var context))
-                {
-                    throw new InvalidOperationException($"unknow method {targetMethod.Name}");
-                }
-
-                var request = new Request
-                {
-                    IsTwoWay = true,
-                    MethodName = context.Method,
-                    Arguments = args,
-                    Service = context.Service,
-                    ParameterTypeInfo = context.ParameterTypeInfo,
-                    ReturnType = context.ReturnType,
-                    Version = context.Version,
-                    Attachments =
-                    {
-                        ["group"] = context.Group,
-                        ["timeout"] = context.Timeout > 0 ? context.Timeout.ToString() : "60000"
-                    }
-                };
-                var connection = Connections[random.Next(0, Connections.Count)];
-                if (!connection.IsConnected)
-                {
-                    connection.Connect();
-                }
-                return connection.Send(request);
-            }
+            internal DubboInvoker DubboInvoker;
 
             public override object Invoke(MethodInfo targetMethod, object[] args)
             {
@@ -290,29 +250,27 @@ namespace Dubbo
                 switch (name)
                 {
                     case "ToString":
-                        return ToString();
+                        return DubboInvoker.ToString();
                     case "GetHashCode":
-                        return GetHashCode();
+                        return DubboInvoker.GetHashCode();
                     case "Equals":
-                        return Equals(args[0]);
+                        return DubboInvoker.Equals(args[0]);
                     case "GetType":
-                        return GetType();
-                    case "MemberwiseClone":
-                        return MemberwiseClone();
+                        return DubboInvoker.GetType();
                     default:
-                        var result = DoInvoke(targetMethod, args).ConfigureAwait(false);
+                        var result = DubboInvoker.Invoke(targetMethod, args).ConfigureAwait(false);
                         return result.GetAwaiter().GetResult().Result;
                 }
             }
 
             public override Task InvokeAsync(MethodInfo method, object[] args)
             {
-                return DoInvoke(method, args);
+                return DubboInvoker.Invoke(method, args);
             }
 
             public override async Task<T> InvokeAsyncT<T>(MethodInfo method, object[] args)
             {
-                var result = await DoInvoke(method, args);
+                var result = await DubboInvoker.Invoke(method, args);
                 return (T)result.Result;
             }
         }

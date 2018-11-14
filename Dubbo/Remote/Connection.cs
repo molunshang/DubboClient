@@ -28,6 +28,7 @@ namespace Dubbo.Remote
         public bool IsConnected => !_isClosed && _client != null && _client.Connected && _rwStream != null;
         public DateTime LastReadTime { get; set; }
         public DateTime LastWriteTime { get; set; }
+        public string Address => $"{_host}:{_port.ToString()}";
 
         public Connection(string host, int port)
         {
@@ -162,23 +163,33 @@ namespace Dubbo.Remote
 
         public void Connect()
         {
-            if (IsConnected)
+            lock (this)
             {
-                return;
+                if (IsConnected)
+                {
+                    return;
+                }
+                InitClient();
+                Start();
             }
-            InitClient();
-            Start();
         }
 
         public void Close()
         {
-            _isClosed = true;
-            _sendQueue.CompleteAdding();
-            if (IsConnected)
+            lock (this)
             {
-                CloseClient();
+                if (!IsConnected)
+                {
+                    return;
+                }
+                _isClosed = true;
+                _sendQueue.CompleteAdding();
+                if (IsConnected)
+                {
+                    CloseClient();
+                }
+                Task.WaitAll(_sendTask, _receiveTask);
             }
-            Task.WaitAll(_sendTask, _receiveTask);
         }
 
         public Task<Response> Send(Request request)
@@ -193,7 +204,6 @@ namespace Dubbo.Remote
             {
                 return future.Task;
             }
-
             _waitingTasks.TryRemove(request.RequestId, out future);
             return Task.FromCanceled<Response>(CancellationToken.None);
         }
@@ -216,7 +226,7 @@ namespace Dubbo.Remote
 
         public override string ToString()
         {
-            return $"{_host}:{_port.ToString()}";
+            return Address;
         }
     }
 }
