@@ -15,7 +15,6 @@ namespace Dubbo.Remote
 
         private readonly string _host;
         private readonly int _port;
-        private readonly ConcurrentDictionary<long, TaskCompletionSource<Response>> _waitingTasks;
         private readonly BlockingCollection<Request> _sendQueue;
         private TcpClient _client;
         private NetworkStream _rwStream;
@@ -34,7 +33,6 @@ namespace Dubbo.Remote
         {
             _host = host;
             _port = port;
-            _waitingTasks = new ConcurrentDictionary<long, TaskCompletionSource<Response>>();
             _sendQueue = new BlockingCollection<Request>();
             _conStateEvent = new AutoResetEvent(false);
         }
@@ -84,9 +82,10 @@ namespace Dubbo.Remote
                          {
                              case IOException _:
                              case ObjectDisposedException _:
-                                 if (request != null && _waitingTasks.TryRemove(request.RequestId, out var task))
+                                 RequestTask task;
+                                 if (request != null && (task = RequestTasks.GetRequestTask(request.RequestId)) != null)
                                  {
-                                     task.TrySetException(new RemotingException($"message can not send, because connection is closed . address:{_host}:{_port.ToString()}", ex));
+                                     task.Task.TrySetException(new RemotingException($"message can not send, because connection is closed . address:{_host}:{_port.ToString()}", ex));
                                  }
                                  Reconect();
                                  log.Warn("An error happend when send message", ex);
@@ -100,10 +99,9 @@ namespace Dubbo.Remote
 
                  while (_sendQueue.TryTake(out var request))
                  {
-                     if (_waitingTasks.TryRemove(request.RequestId, out var task))
-                     {
-                         task.TrySetException(new RemotingException($"message can not send, because connection is closed . address:{_host}:{_port.ToString()}"));
-                     }
+                     var task = RequestTasks.GetRequestTask(request.RequestId);
+                     task?.Task.TrySetException(new RemotingException($"message can not send, because connection is closed . address:{_host}:{_port.ToString()}"));
+
                  }
              }, TaskCreationOptions.LongRunning);
             _receiveTask = Task.Factory.StartNew(() =>
@@ -116,10 +114,6 @@ namespace Dubbo.Remote
                          if (response.IsEvent)
                          {
                              log.Debug("Receive HeartBeat Response");
-                         }
-                         else if (_waitingTasks.TryGetValue(response.ResponseId, out var task))
-                         {
-                             task.TrySetResult(response);
                          }
                          LastReadTime = DateTime.UtcNow;
                      }
@@ -198,13 +192,12 @@ namespace Dubbo.Remote
             {
                 return Task.FromCanceled<Response>(CancellationToken.None);
             }
-            var future = new TaskCompletionSource<Response>();
-            _waitingTasks.TryAdd(request.RequestId, future);
+            var resultTask = RequestTasks.NewRequest(request);
             if (_sendQueue.TryAdd(request))
             {
-                return future.Task;
+                return resultTask;
             }
-            _waitingTasks.TryRemove(request.RequestId, out future);
+            RequestTasks.GetRequestTask(request.RequestId);
             return Task.FromCanceled<Response>(CancellationToken.None);
         }
 

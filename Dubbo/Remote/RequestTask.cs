@@ -9,7 +9,7 @@ namespace Dubbo.Remote
             Request = request;
             Task = task;
         }
-        public Request Request { get; private set; }
-        public TaskCompletionSource<Response> Task { get; private set; }
+        public Request Request { get; }
+        public TaskCompletionSource<Response> Task { get; }
     }
 }

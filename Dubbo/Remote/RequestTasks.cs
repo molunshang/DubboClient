@@ -15,7 +15,7 @@ namespace Dubbo.Remote
 
         public static RequestTask GetRequestTask(long id)
         {
-            return waitingTasks.TryGetValue(id, out var task) ? task : null;
+            return waitingTasks.TryRemove(id, out var task) ? task : null;
         }
     }
 }

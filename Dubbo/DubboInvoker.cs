@@ -45,6 +45,7 @@ namespace Dubbo
         {
             _methodDictionary = methodDictionary;
         }
+
         public void RefreshConnection(ISet<ServiceConfig> configs)
         {
             lock (this)
@@ -89,6 +90,10 @@ namespace Dubbo
 
         public Task<Response> Invoke(MethodInfo targetMethod, object[] args)
         {
+            if (forbidden)
+            {
+                throw new InvalidOperationException($"unknow method {targetMethod.Name}");
+            }
             if (!_methodDictionary.TryGetValue(targetMethod, out var context))
             {
                 throw new InvalidOperationException($"unknow method {targetMethod.Name}");

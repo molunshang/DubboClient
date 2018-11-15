@@ -84,6 +84,7 @@ namespace Dubbo
                 IsEvent = (resHeader[2] & EventFlag) != 0,
                 IsTwoWay = (resHeader[2] & TwowayFlag) != 0
             };
+            var request = RequestTasks.GetRequestTask(response.ResponseId);
             var bodyLength = resHeader.ReadInt(12);
             var body = new byte[bodyLength];
             inputStream.ReadBytes(body);
@@ -96,7 +97,6 @@ namespace Dubbo
                 }
                 else
                 {
-                    var request = RequestTasks.GetRequestTask(response.ResponseId);
                     var resultType = request?.Request.ReturnType;
                     var flag = (byte)reader.ReadInt();
                     switch (flag)
@@ -131,6 +131,7 @@ namespace Dubbo
                 response.Error = new Exception(response.ErrorMessage);
             }
 
+            request?.Task.TrySetResult(response);
             return response;
         }
     }

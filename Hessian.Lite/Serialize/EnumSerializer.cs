@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Hessian.Lite.Attribute;
+using System;
+using System.Reflection;
 
 namespace Hessian.Lite.Serialize
 {
@@ -8,7 +10,8 @@ namespace Hessian.Lite.Serialize
         {
             var type = obj.GetType();
             var name = Enum.GetName(type, obj);
-            if (!writer.WriteObjectHeader(type.AssemblyQualifiedName))
+            var nameAttr = type.GetCustomAttribute<NameAttribute>();
+            if (!writer.WriteObjectHeader(nameAttr == null ? type.AssemblyQualifiedName : nameAttr.TargetName))
             {
                 writer.WriteInt(1);
                 writer.WriteString("name");

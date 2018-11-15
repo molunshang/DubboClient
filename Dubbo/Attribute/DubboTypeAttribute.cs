@@ -6,5 +6,10 @@ namespace Dubbo.Attribute
     public class DubboTypeAttribute : System.Attribute
     {
         public string TargetType { get; set; }
+
+        public DubboTypeAttribute(string type)
+        {
+            TargetType = type;
+        }
     }
 }
